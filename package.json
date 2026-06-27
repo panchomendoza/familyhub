@@ -1,0 +1,21 @@
+{
+  "name": "familyhub",
+  "author": "Juan Mendoza",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev":         "pnpm --parallel -r dev",
+    "dev:web":     "pnpm --filter @familyhub/web dev",
+    "dev:api":     "pnpm --filter @familyhub/api dev",
+    "build":       "pnpm -r build",
+    "type-check":  "pnpm -r type-check",
+    "lint":        "pnpm -r lint",
+    "db:push":     "pnpm --filter @familyhub/api db:push",
+    "db:migrate":  "pnpm --filter @familyhub/api db:migrate",
+    "db:studio":   "pnpm --filter @familyhub/api db:studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

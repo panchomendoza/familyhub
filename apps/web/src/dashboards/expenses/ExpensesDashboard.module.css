@@ -1,0 +1,630 @@
+/* ════════════════════════════════════════════════════════════════
+   ExpensesDashboard
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar ── */
+.sidebarWrap {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+}
+
+.sidebarHeader {
+  padding:       20px 20px 14px;
+  border-bottom: 1.5px solid var(--border-light);
+}
+
+.sidebarLogo {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin-bottom: 2px;
+}
+
+.sidebarTitle   { font-weight: 800; font-size: 16px; color: var(--text); }
+.sidebarSubtitle { font-size: 12px; color: var(--text-muted); }
+
+.sidebarTopActions {
+  display: flex;
+  gap:     6px;
+  margin:  10px 12px 0;
+}
+
+.btnNav {
+  flex:          1;
+  background:    var(--surface-alt);
+  border:        1px solid var(--border);
+  border-radius: 8px;
+  padding:       7px 12px;
+  font-size:     12px;
+  font-weight:   600;
+  color:         var(--brand-blue);
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    opacity 0.12s;
+}
+.btnNav:hover { opacity: 0.8; }
+
+.btnTheme {
+  background:    var(--surface-alt);
+  border:        1px solid var(--border);
+  border-radius: 8px;
+  padding:       7px 10px;
+  font-size:     14px;
+  cursor:        pointer;
+}
+
+/* ── Month navigation ── */
+.monthNav {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  padding:     14px 16px 8px;
+}
+
+.btnMonth {
+  background:    var(--surface-alt);
+  border:        1px solid var(--border);
+  border-radius: 7px;
+  width:         28px;
+  height:        28px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  cursor:        pointer;
+  font-size:     14px;
+  color:         var(--text-muted);
+  flex-shrink:   0;
+  transition:    background 0.12s;
+}
+.btnMonth:hover:not(:disabled) { background: var(--border); }
+.btnMonth:disabled { opacity: 0.3; cursor: default; }
+
+.monthLabel {
+  flex:        1;
+  font-weight: 700;
+  font-size:   14px;
+  color:       var(--text);
+  text-align:  center;
+}
+
+.monthCurrent {
+  font-size:     10px;
+  font-weight:   600;
+  color:         var(--brand-blue);
+  background:    var(--accent-bg);
+  border-radius: 99px;
+  padding:       1px 7px;
+}
+
+/* ── Month list (historial) ── */
+.monthItem {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  width:           100%;
+  padding:         9px 16px;
+  background:      transparent;
+  border:          none;
+  border-left:     3px solid transparent;
+  cursor:          pointer;
+  font-family:     inherit;
+  font-size:       13px;
+  color:           var(--text-muted);
+  transition:      background 0.12s;
+}
+.monthItem:hover  { background: var(--surface-alt); }
+.monthItemActive  { background: var(--accent-bg); color: var(--brand-blue); font-weight: 700; border-left-color: var(--brand-blue); }
+
+.monthItemAmount  { font-size: 12px; font-weight: 600; }
+
+/* ── Section labels en sidebar ── */
+.sectionLabel {
+  padding:        14px 16px 4px;
+  font-size:      11px;
+  font-weight:    700;
+  color:          var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.sectionLabelRow {
+  padding:         14px 16px 4px;
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+}
+
+.btnAddSmall {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   12px;
+  font-weight: 700;
+  padding:     2px 4px;
+  font-family: inherit;
+  transition:  opacity 0.12s;
+}
+.btnAddSmall:hover { opacity: 0.7; }
+
+/* ── Config items (bancos, categorías) ── */
+.configItem {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         6px 16px;
+  gap:             8px;
+}
+
+.configLabel {
+  flex:      1;
+  font-size: 13px;
+  color:     var(--text);
+  min-width: 0;
+}
+
+.configInput {
+  flex:          1;
+  padding:       4px 8px;
+  border-radius: 6px;
+  border:        1.5px solid var(--border);
+  background:    var(--input-bg);
+  color:         var(--text);
+  font-family:   inherit;
+  font-size:     13px;
+  outline:       none;
+  min-width:     0;
+}
+.configInput:focus { border-color: var(--brand-blue); }
+
+.btnDeleteSmall {
+  background:    none;
+  border:        none;
+  cursor:        pointer;
+  font-size:     13px;
+  color:         var(--danger-text);
+  padding:       3px 6px;
+  border-radius: 5px;
+  transition:    background 0.12s;
+  flex-shrink:   0;
+}
+.btnDeleteSmall:hover { background: var(--danger-bg); }
+
+.catDot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  flex-shrink:   0;
+}
+
+/* ── Sidebar bottom ── */
+.sidebarBottom {
+  margin-top: auto;
+  padding:    12px;
+  border-top: 1.5px solid var(--border-light);
+  display:    flex;
+  flex-direction: column;
+  gap:        8px;
+}
+
+.btnImport {
+  width:         100%;
+  background:    var(--accent-bg);
+  color:         var(--accent-text);
+  border:        1.5px solid color-mix(in srgb, var(--accent-text) 20%, transparent);
+  border-radius: 8px;
+  padding:       8px 14px;
+  font-weight:   700;
+  font-size:     13px;
+  cursor:        pointer;
+  font-family:   inherit;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           6px;
+  transition:    opacity 0.12s;
+}
+.btnImport:hover { opacity: 0.8; }
+
+.btnAddExpense {
+  width:         100%;
+  background:    var(--brand-blue);
+  color:         #fff;
+  border:        none;
+  border-radius: 8px;
+  padding:       9px 20px;
+  font-weight:   700;
+  font-size:     14px;
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    opacity 0.12s;
+}
+.btnAddExpense:hover { opacity: 0.88; }
+
+/* ── Main content ── */
+.content        { padding: 28px 32px; }
+.contentMobile  { padding: 16px 14px 80px; }
+
+/* ── Summary cards ── */
+.summaryGrid {
+  display:       grid;
+  grid-template-columns: 1fr 1fr;
+  gap:           12px;
+  margin-bottom: 20px;
+}
+
+.summaryCard {
+  background:    var(--surface);
+  border-radius: 14px;
+  padding:       14px 16px;
+  border:        1px solid var(--border);
+  box-shadow:    var(--card-shadow);
+}
+
+.summaryIcon  { font-size: 18px; margin-bottom: 4px; }
+.summaryLabel { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
+.summaryValue { font-weight: 800; font-size: 18px; color: var(--text); }
+
+/* ── Budget bar ── */
+.budgetCard {
+  background:    var(--surface);
+  border-radius: 14px;
+  padding:       14px 16px;
+  border:        1px solid var(--border);
+  box-shadow:    var(--card-shadow);
+  margin-bottom: 20px;
+}
+
+.budgetHeader {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   10px;
+}
+
+.budgetTitle   { font-size: 13px; font-weight: 700; color: var(--text); }
+.budgetPercent { font-size: 13px; font-weight: 700; }
+
+.budgetTrack {
+  height:        8px;
+  border-radius: 99px;
+  background:    var(--surface-alt);
+  overflow:      hidden;
+}
+
+.budgetFill {
+  height:        100%;
+  border-radius: 99px;
+  transition:    width 0.4s ease;
+}
+
+/* Income inline edit */
+.incomeRow {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  margin-top:  8px;
+}
+
+.incomeLabel {
+  font-size: 12px;
+  color:     var(--text-muted);
+}
+
+.incomeInput {
+  border:        none;
+  border-bottom: 1.5px solid var(--border);
+  background:    transparent;
+  color:         var(--text);
+  font-family:   inherit;
+  font-size:     13px;
+  font-weight:   700;
+  width:         100px;
+  outline:       none;
+  padding:       2px 4px;
+  transition:    border-color 0.15s;
+}
+.incomeInput:focus { border-color: var(--brand-blue); }
+
+/* ── Expense rows ── */
+.expenseList {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.expenseRow {
+  background:    var(--surface);
+  border-radius: 12px;
+  padding:       12px 14px;
+  border:        1px solid var(--border);
+  box-shadow:    var(--card-shadow);
+  display:       flex;
+  align-items:   flex-start;
+  gap:           10px;
+}
+
+.expensePaid { opacity: 0.55; }
+
+.toggleBtn {
+  width:         22px;
+  height:        22px;
+  border-radius: 50%;
+  border:        2px solid var(--border);
+  background:    transparent;
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  flex-shrink:   0;
+  font-size:     11px;
+  transition:    background 0.15s, border-color 0.15s;
+}
+.toggleBtnPaid {
+  background:   var(--brand-green);
+  border-color: var(--brand-green);
+  color:        #fff;
+}
+.toggleSpinner {
+  width:         12px;
+  height:        12px;
+  border:        2px solid var(--text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation:    spin 0.7s linear infinite;
+}
+
+.expenseBody { flex: 1; min-width: 0; }
+
+.expenseNameRow {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+}
+
+.expenseName {
+  font-weight:   700;
+  font-size:     14px;
+  color:         var(--text);
+  border:        none;
+  background:    transparent;
+  font-family:   inherit;
+  outline:       none;
+  cursor:        text;
+  padding:       0;
+  min-width:     60px;
+  width:         auto;
+}
+.expenseName:focus { border-bottom: 1.5px solid var(--brand-blue); }
+
+.expenseCatBadge {
+  font-size:     11px;
+  font-weight:   600;
+  border-radius: 6px;
+  padding:       1px 7px;
+  flex-shrink:   0;
+}
+
+.expenseMeta {
+  display:   flex;
+  gap:       10px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.expenseMetaText { font-size: 12px; color: var(--text-muted); }
+
+.expenseAmountRow {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  gap:            6px;
+  flex-shrink:    0;
+}
+
+.expenseAmount {
+  font-weight: 800;
+  font-size:   15px;
+  color:       var(--text);
+  border:      none;
+  background:  transparent;
+  font-family: inherit;
+  text-align:  right;
+  outline:     none;
+  cursor:      text;
+  padding:     0;
+  width:       90px;
+}
+.expenseAmount:focus { border-bottom: 1.5px solid var(--brand-blue); }
+
+.expenseActions {
+  display: flex;
+  gap:     4px;
+}
+
+.btnExpAction {
+  background:    var(--surface-alt);
+  border:        none;
+  border-radius: 6px;
+  padding:       4px 8px;
+  cursor:        pointer;
+  font-size:     11px;
+  color:         var(--text-muted);
+  transition:    background 0.12s;
+}
+.btnExpAction:hover   { background: var(--border); }
+.btnExpActionDanger   { color: var(--danger-text); }
+.btnExpActionDanger:hover { background: var(--danger-bg); }
+
+/* ── Empty expenses ── */
+.emptyExpenses {
+  text-align:    center;
+  padding:       32px 16px;
+  color:         var(--text-muted);
+  background:    var(--surface);
+  border-radius: 12px;
+  border:        1px solid var(--border);
+}
+
+/* ── View header (resumen / config) ── */
+.viewHeader {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   16px;
+}
+
+.viewTitle {
+  font-weight: 800;
+  font-size:   18px;
+  color:       var(--text);
+}
+
+/* ── Add expense inline ── */
+.addExpenseForm {
+  background:    var(--surface);
+  border-radius: 12px;
+  padding:       14px 16px;
+  border:        1.5px dashed var(--border);
+  display:       flex;
+  flex-direction: column;
+  gap:           10px;
+  margin-bottom: 16px;
+}
+
+.addExpenseRow {
+  display:     flex;
+  gap:         10px;
+  align-items: flex-start;
+  flex-wrap:   wrap;
+}
+
+.addExpenseActions {
+  display:         flex;
+  gap:             8px;
+  justify-content: flex-end;
+}
+
+/* ── Modal: import expenses ── */
+.importList {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  max-height:     320px;
+  overflow-y:     auto;
+  margin-bottom:  16px;
+}
+
+.importItem {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 12px;
+  border-radius: 10px;
+  border:        1.5px solid var(--border);
+  background:    var(--surface-alt);
+  cursor:        pointer;
+  user-select:   none;
+  transition:    background 0.12s, border-color 0.12s;
+}
+.importItemSelected {
+  background:    var(--accent-bg);
+  border-color:  var(--brand-blue);
+}
+
+.importCheckbox {
+  width:         18px;
+  height:        18px;
+  border-radius: 5px;
+  border:        2px solid var(--border);
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     11px;
+  flex-shrink:   0;
+  background:    var(--surface);
+  transition:    background 0.12s, border-color 0.12s;
+}
+.importCheckboxChecked {
+  background:   var(--brand-blue);
+  border-color: var(--brand-blue);
+  color:        #fff;
+}
+
+.importName   { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+.importAmount { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+
+.importActions {
+  display:         flex;
+  gap:             8px;
+  justify-content: space-between;
+  align-items:     center;
+}
+
+.importSelectAll {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   13px;
+  color:       var(--brand-blue);
+  font-weight: 600;
+  font-family: inherit;
+  padding:     0;
+}
+
+/* ── Modal: add item (banco / categoría) ── */
+.modalTitle {
+  margin:      0 0 16px;
+  font-weight: 700;
+  font-size:   15px;
+  color:       var(--text);
+}
+
+.modalDesc {
+  margin:    0 0 16px;
+  font-size: 13px;
+  color:     var(--text-muted);
+}
+
+.modalActions {
+  display: flex;
+  gap:     8px;
+  margin-top: 16px;
+}
+
+.btnModalCancel {
+  flex:          1;
+  padding:       9px;
+  border-radius: 9px;
+  border:        1.5px solid var(--border);
+  background:    var(--surface-alt);
+  color:         var(--text-muted);
+  font-family:   inherit;
+  font-weight:   600;
+  font-size:     14px;
+  cursor:        pointer;
+  transition:    opacity 0.12s;
+}
+.btnModalCancel:hover    { opacity: 0.8; }
+.btnModalCancel:disabled { opacity: 0.5; }
+
+.btnModalConfirm {
+  flex:          1;
+  padding:       9px;
+  border-radius: 9px;
+  border:        none;
+  background:    var(--brand-blue);
+  color:         #fff;
+  font-family:   inherit;
+  font-weight:   700;
+  font-size:     14px;
+  cursor:        pointer;
+  transition:    opacity 0.12s;
+}
+.btnModalConfirm:hover    { opacity: 0.88; }
+.btnModalConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnModalDanger {
+  background: var(--danger-text);
+}

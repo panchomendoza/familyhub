@@ -1,0 +1,33 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.production
+*.env
+
+# Prisma
+apps/api/prisma/migrations/
+prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Test coverage
+coverage/
+
+# Next/Vite cache
+.next/
+.vite/
+scripts/railway-vars.json

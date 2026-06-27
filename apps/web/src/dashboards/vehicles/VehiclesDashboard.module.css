@@ -1,0 +1,855 @@
+/* ══════════════════════════════════════════════════════════════
+   VehiclesDashboard.module.css
+   ══════════════════════════════════════════════════════════════ */
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+
+.sidebarWrap {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+  overflow-y:     auto;
+  min-height:     0;
+}
+
+.sidebarHeader {
+  padding:       20px 16px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* ─── Lista de vehículos ─────────────────────────────────── */
+
+.vList {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  padding:        12px 10px 6px;
+  flex:           1;
+}
+
+.vCard {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 10px;
+  border-radius: 10px;
+  border:        1.5px solid transparent;
+  cursor:        pointer;
+  transition:    background 0.15s, border-color 0.15s;
+}
+
+.vCard:hover {
+  background: var(--surface-alt);
+}
+
+.vCardActive {
+  background:   var(--surface-alt);
+  border-color: #4F7BF733;
+}
+
+.vCardSold {
+  opacity: 0.6;
+}
+
+.vCardIcon {
+  width:         36px;
+  height:        36px;
+  border-radius: 9px;
+  border:        1.5px solid transparent;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     18px;
+  flex-shrink:   0;
+  transition:    background 0.15s, border-color 0.15s;
+}
+
+.vCardBody {
+  min-width: 0;
+  flex:      1;
+}
+
+.vCardName {
+  font-size:   13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow:    hidden;
+  text-overflow: ellipsis;
+  transition:  color 0.15s;
+}
+
+.vCardSub {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  margin-top:  2px;
+  font-size:   11px;
+  color:       var(--text-muted);
+}
+
+.vCardPlate {
+  font-size:     10px;
+  font-weight:   700;
+  padding:       1px 6px;
+  border-radius: 4px;
+  background:    var(--surface-alt);
+  border:        1px solid var(--border);
+  letter-spacing: 0.05em;
+  color:         var(--text-muted);
+}
+
+.soldBadge {
+  font-size:     10px;
+  font-weight:   700;
+  padding:       1px 6px;
+  border-radius: 4px;
+  background:    #F7874F18;
+  border:        1px solid #F7874F44;
+  color:         #F7874F;
+  letter-spacing: 0.04em;
+}
+
+.addBtn {
+  width:         100%;
+  padding:       10px 0;
+  border-radius: 10px;
+  border:        none;
+  background:    linear-gradient(135deg, #4F7BF7, #A44FF7);
+  color:         #fff;
+  font-size:     13px;
+  font-weight:   700;
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    opacity 0.15s;
+}
+
+.addBtn:hover {
+  opacity: 0.88;
+}
+
+/* ─── Content area ───────────────────────────────────────── */
+
+.content {
+  padding:   20px 28px 40px;
+  min-width: 0;
+  display:   flex;
+  flex-direction: column;
+  gap:       16px;
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 14px 14px 32px;
+  }
+}
+
+/* ─── Vehicle header ─────────────────────────────────────── */
+
+.vehicleHeader {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  flex-wrap:       wrap;
+  gap:             14px;
+  padding-bottom:  16px;
+  border-bottom:   1px solid var(--border-light);
+}
+
+.vehicleHeaderLeft {
+  display:     flex;
+  align-items: flex-start;
+  gap:         14px;
+}
+
+.vehicleEmoji {
+  width:         52px;
+  height:        52px;
+  border-radius: 14px;
+  background:    linear-gradient(135deg, #4F7BF722, #A44FF722);
+  border:        1px solid #4F7BF733;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     26px;
+  flex-shrink:   0;
+}
+
+.vehicleTitle {
+  font-size:   22px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  flex-wrap:   wrap;
+}
+
+.soldHeaderBadge {
+  font-size:     12px;
+  font-weight:   700;
+  padding:       3px 10px;
+  border-radius: 6px;
+  background:    #F7874F18;
+  border:        1px solid #F7874F44;
+  color:         #F7874F;
+  letter-spacing: 0.04em;
+}
+
+.vehicleSubtitle {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  flex-wrap:   wrap;
+  margin-top:  4px;
+  font-size:   13px;
+}
+
+.plateBadge {
+  font-size:     11px;
+  font-weight:   700;
+  padding:       2px 8px;
+  border-radius: 5px;
+  background:    var(--surface-alt);
+  border:        1px solid var(--border);
+  letter-spacing: 0.06em;
+  color:         var(--text);
+}
+
+.vehicleHeaderActions {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+}
+
+.actionChip {
+  padding:       7px 14px;
+  border-radius: 8px;
+  border:        1px solid var(--border);
+  background:    var(--surface-alt);
+  color:         var(--text-muted);
+  font-size:     12px;
+  font-weight:   600;
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    background 0.15s, color 0.15s;
+  white-space:   nowrap;
+}
+
+.actionChip:hover {
+  background: var(--border-light);
+  color:      var(--text);
+}
+
+.actionChipDanger {
+  composes: actionChip;
+  color:    #F7874F;
+  border-color: #F7874F33;
+}
+
+.actionChipDanger:hover {
+  background: #F7874F12;
+}
+
+.actionChipDestructive {
+  composes: actionChip;
+  color:    var(--brand-red);
+  border-color: #F74F7B33;
+}
+
+.actionChipDestructive:hover {
+  background: #F74F7B12;
+}
+
+/* ─── Alert banner ───────────────────────────────────────── */
+
+.alertBanner {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 16px;
+  border-radius: 10px;
+  background:    #F74F7B12;
+  border:        1px solid #F74F7B33;
+  color:         var(--brand-red);
+  font-size:     13px;
+  font-weight:   600;
+  cursor:        pointer;
+  font-family:   inherit;
+  text-align:    left;
+  width:         100%;
+  transition:    background 0.15s;
+}
+
+.alertBanner:hover {
+  background: #F74F7B1E;
+}
+
+/* ─── Section tabs ───────────────────────────────────────── */
+
+.tabBar {
+  display:   flex;
+  gap:       4px;
+  flex-wrap: wrap;
+}
+
+.sectionTab {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       8px 16px;
+  border-radius: 9px;
+  border:        1px solid transparent;
+  background:    transparent;
+  color:         var(--text-muted);
+  font-size:     13px;
+  font-weight:   500;
+  cursor:        pointer;
+  font-family:   inherit;
+  white-space:   nowrap;
+  transition:    background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sectionTab:hover {
+  background: var(--surface-alt);
+  color:      var(--text);
+}
+
+.sectionTabActive {
+  background:   var(--surface-alt);
+  border-color: #4F7BF755;
+  color:        #4F7BF7;
+  font-weight:  700;
+}
+
+.sectionTabBadge {
+  display:       inline-flex;
+  align-items:   center;
+  justify-content: center;
+  min-width:     18px;
+  height:        18px;
+  padding:       0 5px;
+  border-radius: 20px;
+  background:    var(--border);
+  color:         var(--text-muted);
+  font-size:     10px;
+  font-weight:   700;
+}
+
+.sectionTabActive .sectionTabBadge {
+  background: #4F7BF722;
+  color:      #4F7BF7;
+}
+
+/* ─── Section wrapper ────────────────────────────────────── */
+
+.section {
+  display:        flex;
+  flex-direction: column;
+  gap:            16px;
+}
+
+.sectionTopBar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  flex-wrap:       wrap;
+  gap:             10px;
+}
+
+.sectionTitle {
+  font-size:   18px;
+  font-weight: 700;
+  margin:      0;
+}
+
+.addRowBtn {
+  padding:       8px 16px;
+  border-radius: 8px;
+  border:        none;
+  background:    linear-gradient(135deg, #4F7BF7, #A44FF7);
+  color:         #fff;
+  font-size:     13px;
+  font-weight:   700;
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    opacity 0.15s;
+  white-space:   nowrap;
+}
+
+.addRowBtn:hover {
+  opacity: 0.88;
+}
+
+/* ─── Empty state ────────────────────────────────────────── */
+
+.emptyState {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  padding:        60px 20px;
+  gap:            12px;
+  text-align:     center;
+  font-size:      36px;
+}
+
+/* ─── Stats row ──────────────────────────────────────────── */
+
+.statsRow {
+  display:               grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:                   12px;
+}
+
+@media (max-width: 700px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.statCard {
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+  padding:       14px 16px;
+  border-radius: 12px;
+  background:    var(--surface);
+  border:        1px solid var(--border-light);
+  box-shadow:    var(--card-shadow);
+}
+
+.statIcon {
+  font-size:     22px;
+  flex-shrink:   0;
+  width:         38px;
+  height:        38px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  border-radius: 9px;
+  background:    var(--surface-alt);
+}
+
+.statValue {
+  font-size:   18px;
+  font-weight: 800;
+  color:       var(--text);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size:  11px;
+  color:      var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Info grid ──────────────────────────────────────────── */
+
+.infoGrid {
+  display:               grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:                   14px;
+}
+
+@media (max-width: 860px) {
+  .infoGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.infoCard {
+  padding:       18px;
+  border-radius: 14px;
+  background:    var(--surface);
+  border:        1px solid var(--border-light);
+  box-shadow:    var(--card-shadow);
+  display:       flex;
+  flex-direction: column;
+  gap:            0;
+}
+
+.infoCardTitle {
+  font-size:     13px;
+  font-weight:   700;
+  color:         var(--text);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.infoField {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  gap:             8px;
+  padding:         7px 0;
+  border-bottom:   1px solid var(--border-light);
+  font-size:       13px;
+}
+
+.infoField:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  color:         var(--text-hint);
+  font-size:     10px;
+  font-weight:   700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink:   0;
+}
+
+.infoValue {
+  color:      var(--text);
+  font-weight: 500;
+  text-align:  right;
+  word-break:  break-all;
+}
+
+/* ─── Record list (mantenciones y gastos) ────────────────── */
+
+.recordList {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+/* ── Mantenimiento ── */
+
+.maintRecord {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           16px;
+  padding:       14px 16px;
+  border-radius: 12px;
+  background:    var(--surface);
+  border:        1px solid var(--border-light);
+  box-shadow:    var(--card-shadow);
+  transition:    background 0.15s;
+}
+
+.maintRecord:hover {
+  background: var(--surface-alt);
+}
+
+.maintRecordLeft {
+  flex:    1;
+  min-width: 0;
+}
+
+.maintType {
+  font-size:   14px;
+  font-weight: 700;
+  color:       var(--text);
+}
+
+.maintDesc {
+  font-size:  12px;
+  color:      var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.maintMeta {
+  display:   flex;
+  gap:       12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size:  11px;
+  color:      var(--text-muted);
+}
+
+.maintRecordRight {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  gap:            6px;
+  flex-shrink:    0;
+}
+
+.maintCost {
+  font-size:   15px;
+  font-weight: 700;
+  color:       var(--brand-red);
+  white-space: nowrap;
+}
+
+/* ── Actions ── */
+
+.rowActions {
+  display: flex;
+  gap:     4px;
+}
+
+.iconBtn {
+  background:    transparent;
+  border:        none;
+  cursor:        pointer;
+  font-size:     13px;
+  padding:       5px 7px;
+  border-radius: 6px;
+  opacity:       0.65;
+  transition:    opacity 0.15s, background 0.15s;
+  font-family:   inherit;
+  line-height:   1;
+}
+
+.iconBtn:hover {
+  opacity:    1;
+  background: var(--surface-alt);
+}
+
+/* ─── Document grid ──────────────────────────────────────── */
+
+.docGrid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap:                   12px;
+}
+
+.docCard {
+  padding:        16px;
+  border-radius:  12px;
+  background:     var(--surface);
+  border:         1px solid var(--border-light);
+  box-shadow:     var(--card-shadow);
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  transition:     border-color 0.15s;
+}
+
+.docCardExpired {
+  border-color: #F74F7B44;
+  background:   #F74F7B06;
+}
+
+.docCardSoon {
+  border-color: #F7874F44;
+  background:   #F7874F06;
+}
+
+.docCardTop {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             8px;
+}
+
+.docType {
+  font-size:   13px;
+  font-weight: 700;
+  color:       var(--text);
+  line-height: 1.3;
+}
+
+.docInfo {
+  display:        flex;
+  flex-direction: column;
+  gap:            5px;
+  font-size:      12px;
+  color:          var(--text-muted);
+}
+
+.docActions {
+  display:   flex;
+  gap:       6px;
+  margin-top: 4px;
+}
+
+/* ─── Expense section ────────────────────────────────────── */
+
+.expSummary {
+  padding:       14px 16px;
+  border-radius: 12px;
+  background:    var(--surface);
+  border:        1px solid var(--border-light);
+  display:       flex;
+  flex-direction: column;
+  gap:           10px;
+}
+
+.expTotal {
+  font-size:  14px;
+  color:      var(--text-muted);
+}
+
+.catChips {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+}
+
+.catChip {
+  font-size:     11px;
+  font-weight:   600;
+  padding:       4px 10px;
+  border-radius: 20px;
+  border:        1px solid;
+  white-space:   nowrap;
+}
+
+/* Expense record row */
+
+.expRecord {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+  padding:     12px 14px;
+  border-radius: 10px;
+  background:  var(--surface);
+  border:      1px solid var(--border-light);
+  box-shadow:  var(--card-shadow);
+  transition:  background 0.15s;
+}
+
+.expRecord:hover {
+  background: var(--surface-alt);
+}
+
+.expCatDot {
+  width:        38px;
+  height:       38px;
+  border-radius: 8px;
+  border:       1.5px solid;
+  flex-shrink:  0;
+  display:      flex;
+  align-items:  center;
+  justify-content: center;
+}
+
+.expBody {
+  flex:    1;
+  min-width: 0;
+}
+
+.expDesc {
+  font-size:     13px;
+  font-weight:   600;
+  color:         var(--text);
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+
+.expMeta {
+  display:   flex;
+  gap:       10px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size:  11px;
+  color:      var(--text-muted);
+}
+
+.expAmount {
+  font-size:   15px;
+  font-weight: 700;
+  color:       var(--brand-red);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ─── Monthly expense groups ─────────────────────────────── */
+
+.monthGroup {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.monthHeader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         6px 2px 6px 0;
+  border-bottom:   1.5px solid var(--border-light);
+  margin-bottom:   2px;
+}
+
+.monthLabel {
+  font-size:   13px;
+  font-weight: 700;
+  color:       var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.monthSubtotal {
+  font-size:   13px;
+  font-weight: 700;
+  color:       var(--brand-red);
+}
+
+/* ─── Alerts ─────────────────────────────────────────────── */
+
+.alertList {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.alertItem {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           12px;
+  padding:       14px 16px;
+  border-radius: 12px;
+  border:        1px solid;
+}
+
+.alertDanger {
+  background:   #F74F7B0d;
+  border-color: #F74F7B44;
+}
+
+.alertWarning {
+  background:   #F7874F0d;
+  border-color: #F7874F44;
+}
+
+.alertIcon {
+  font-size:  20px;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top:  1px;
+}
+
+.alertMsg {
+  font-size:   13px;
+  font-weight: 600;
+  color:       var(--text);
+  line-height: 1.4;
+}
+
+.alertType {
+  font-size:  11px;
+  margin-top: 2px;
+}
+
+.alertAction {
+  margin-left:   auto;
+  flex-shrink:   0;
+  font-size:     11px;
+  font-weight:   700;
+  padding:       5px 12px;
+  border-radius: 6px;
+  border:        1px solid var(--border);
+  background:    var(--surface);
+  color:         var(--text-muted);
+  cursor:        pointer;
+  font-family:   inherit;
+  white-space:   nowrap;
+  align-self:    center;
+  transition:    background 0.15s;
+}
+
+.alertAction:hover {
+  background: var(--surface-alt);
+  color:      var(--text);
+}

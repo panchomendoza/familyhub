@@ -1,0 +1,453 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ══════════════════════════════════════════
+//   AUTH
+// ══════════════════════════════════════════
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String?  // null if using Google OAuth
+  provider  String   @default("email") // "email" | "google"
+  verified  Boolean  @default(false)
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions       Session[]
+  verifyTokens   EmailVerifyToken[]
+  passwordResets PasswordResetToken[]
+  memberships    FamilyMember[]
+
+  @@index([email])
+}
+
+model Session {
+  id                  String   @id @default(cuid())
+  userId              String
+  refreshToken        String   @unique
+  userAgent           String?
+  ipAddress           String?
+  // Expiración del refresh token (corta duración, se rota en cada refresh)
+  expiresAt           DateTime
+  // Límite absoluto de la sesión — no se extiende en auto-refresh, solo en renovación manual
+  absoluteExpiresAt   DateTime
+  // true si el usuario ya usó su única renovación manual
+  renewalUsed         Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  lastSeenAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([absoluteExpiresAt])
+}
+
+model EmailVerifyToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Código OTP de 6 dígitos para recuperación de contraseña
+model PasswordResetCode {
+  id        String   @id @default(cuid())
+  email     String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  email      String
+  ipAddress  String
+  successful Boolean
+  createdAt  DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+}
+
+// ══════════════════════════════════════════
+//   FAMILIES AND PERMISSIONS
+// ══════════════════════════════════════════
+
+model Family {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members           FamilyMember[]
+  expenseMonths     ExpenseMonth[]
+  expenseCategories ExpenseCategory[]
+  expenseBanks      ExpenseBank[]
+  stockItems        StockItem[]
+  stockCategories   StockCategory[]
+  children          Child[]
+  vehicles          Vehicle[]
+}
+
+model FamilyMember {
+  id              String   @id @default(cuid())
+  userId          String
+  familyId        String
+  role            String   @default("member") // "admin" | "member"
+  dashboardAccess String[] @default(["health", "stock"]) // miembro nuevo: sin gastos
+  joinedAt        DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, familyId])
+  @@index([familyId])
+}
+
+// ══════════════════════════════════════════
+//   DASHBOARD: EXPENSES & BUDGET
+// ══════════════════════════════════════════
+
+model ExpenseCategory {
+  id       String @id @default(cuid())
+  familyId String
+  label    String
+  icon     String
+  color    String
+  order    Int    @default(0)
+
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@index([familyId])
+}
+
+model ExpenseBank {
+  id       String @id @default(cuid())
+  familyId String
+  name     String
+  order    Int    @default(0)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ExpenseMonth {
+  id        String   @id @default(cuid())
+  familyId  String
+  year      Int
+  month     Int      // 0–11
+  income    Float    @default(0)
+  closed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([familyId, year, month])
+  @@index([familyId])
+}
+
+model Expense {
+  id                 String   @id @default(cuid())
+  monthId            String
+  categoryId         String?
+  name               String
+  bank               String
+  amount             Float
+  notes              String?
+  installments       Int      @default(0)
+  currentInstallment Int      @default(0)
+  paid               Boolean  @default(false)
+  installmentGroupId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  month    ExpenseMonth     @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([monthId])
+  @@index([installmentGroupId])
+}
+
+// ══════════════════════════════════════════
+//   DASHBOARD: HOME STOCK
+// ══════════════════════════════════════════
+
+model StockCategory {
+  id       String @id @default(cuid())
+  familyId String
+  label    String
+  icon     String
+  color    String
+  order    Int    @default(0)
+
+  family Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  items  StockItem[]
+}
+
+model StockItem {
+  id         String   @id @default(cuid())
+  familyId   String
+  categoryId String
+  name       String
+  quantity   Float    @default(0)
+  minimum    Float    @default(0)
+  unit       String   @default("unidades")
+  location   String?
+  barcode    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  family   Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category StockCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([familyId])
+  @@index([barcode])
+}
+
+// ══════════════════════════════════════════
+//   DASHBOARD: CHILD HEALTH
+// ══════════════════════════════════════════
+
+model Child {
+  id            String    @id @default(cuid())
+  familyId      String
+  name          String
+  birthdate     DateTime?
+  gender        String?   // "M" | "F"
+  birthplace    String?
+  birthWeight   Float?
+  birthHeight   Float?
+  birthHeadCirc Float?
+  bloodType     String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  controls    Control[]
+  vaccines    Vaccine[]
+  exams       Exam[]
+  visits      Visit[]
+  attachments Attachment[]
+
+  @@index([familyId])
+}
+
+model Control {
+  id        String   @id @default(cuid())
+  childId   String
+  date      DateTime
+  doctor    String?
+  center    String?
+  weight    Float?
+  height    Float?
+  headCirc  Float?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  child       Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  exams       Exam[]
+  attachments Attachment[]
+
+  @@index([childId])
+}
+
+model Vaccine {
+  id        String   @id @default(cuid())
+  childId   String
+  date      DateTime
+  name      String
+  dose      String?
+  batch     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  childId   String
+  date      DateTime
+  reason    String
+  doctor    String?
+  center    String?
+  diagnosis String?
+  treatment String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  child       Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  exams       Exam[]
+  attachments Attachment[]
+
+  @@index([childId])
+}
+
+model Exam {
+  id         String   @id @default(cuid())
+  childId    String
+  controlId  String?
+  visitId    String?
+  date       DateTime
+  type       String
+  laboratory String?
+  result     String?
+  createdAt  DateTime @default(now())
+
+  child   Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  control Control? @relation(fields: [controlId], references: [id])
+  visit   Visit?   @relation(fields: [visitId], references: [id])
+
+  @@index([childId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  childId    String
+  controlId  String?
+  visitId    String?
+  name       String
+  type       String   // "prescription" | "result" | "indication" | "other"
+  date       DateTime
+  fileName   String
+  fileSize   Int
+  storageKey String
+  mimeType   String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  child   Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  control Control? @relation(fields: [controlId], references: [id])
+  visit   Visit?   @relation(fields: [visitId], references: [id])
+
+  @@index([childId])
+}
+
+// ══════════════════════════════════════════
+//   DASHBOARD: VEHICLES
+// ══════════════════════════════════════════
+
+model Vehicle {
+  id           String    @id @default(cuid())
+  familyId     String
+  type         String    // "car" | "motorcycle" | "truck" | "van" | "other"
+  brand        String
+  model        String
+  year         Int
+  engineCC     Int?
+  fuelType     String?   // "gasoline" | "diesel" | "electric" | "hybrid" | "gas"
+  transmission String?   // "manual" | "automatic"
+  licensePlate String
+  vin          String?
+  color        String?
+  currentKm    Int       @default(0)
+  doors        Int?
+  sold         Boolean   @default(false)
+  soldDate     DateTime?
+  soldPrice    Float?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  family       Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  maintenances VehicleMaintenance[]
+  documents    VehicleDocument[]
+  expenses     VehicleExpense[]
+
+  @@index([familyId])
+}
+
+model VehicleMaintenance {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  type        String    // "oil" | "tires" | "brakes" | "battery" | "belt" | "filters" | "suspension" | "other"
+  description String
+  date        DateTime
+  odometer    Int
+  cost        Float?
+  workshop    String?
+  nextKm      Int?
+  nextDate    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+}
+
+model VehicleDocument {
+  id             String    @id @default(cuid())
+  vehicleId      String
+  type           String    // "insurance" | "soat" | "technical" | "registration" | "permit" | "other"
+  issueDate      DateTime
+  expiryDate     DateTime
+  amount         Float?
+  company        String?
+  notes          String?
+  attachmentName String?
+  attachmentData String?   @db.Text  // base64 data URL
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+}
+
+model VehicleExpense {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  date        DateTime
+  category    String   // "Combustible" | "Mantención" | "Seguro" | "Multa" | "Peaje" | "Lavado" | "Otro"
+  description String   @default("")
+  amount      Float
+  odometer    Int?
+  liters      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+}

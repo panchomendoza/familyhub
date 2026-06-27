@@ -1,0 +1,84 @@
+/* ════════════════════════════════════════════════════════════════
+   DashboardLayout
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper raíz ── */
+.root {
+  display:    flex;
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* ── Sidebar desktop ── */
+.sidebar {
+  width:        240px;
+  background:   var(--sidebar-bg);
+  border-right: 1.5px solid var(--border-light);
+  flex-shrink:  0;
+  overflow-y:   auto;
+  position:     sticky;
+  top:          0;
+  height:       100vh;
+}
+
+/* ── Drawer mobile ── */
+.drawerBackdrop {
+  position: fixed;
+  inset:    0;
+  z-index:  150;
+  display:  flex;
+}
+
+.drawerPanel {
+  width:        260px;
+  background:   var(--sidebar-bg);
+  border-right: 1.5px solid var(--border-light);
+  height:       100%;
+  overflow-y:   auto;
+  box-shadow:   4px 0 24px #0004;
+}
+
+.drawerOverlay {
+  flex:       1;
+  background: #0004;
+}
+
+/* ── Contenido principal ── */
+.main {
+  flex:       1;
+  overflow-y: auto;
+  min-width:  0;
+}
+
+/* ── Topbar mobile ── */
+.topbar {
+  position:      sticky;
+  top:           0;
+  z-index:       50;
+  background:    var(--sidebar-bg);
+  border-bottom: 1.5px solid var(--border-light);
+  padding:       12px 16px;
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+}
+
+.topbarMenu {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   22px;
+  color:       var(--text);
+  padding:     0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.topbarActions {
+  margin-left:  auto;
+  display:      flex;
+  align-items:  center;
+  gap:          8px;
+  flex-shrink:  0;
+}

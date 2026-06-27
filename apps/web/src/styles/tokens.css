@@ -1,0 +1,74 @@
+/* ════════════════════════════════════════════════════════════════
+   FamilyHub — Design Tokens (CSS Custom Properties)
+   Refleja exactamente la interfaz ThemeTokens de src/lib/theme.ts
+   El hook useTheme() aplica/remueve la clase "dark" en <html>.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Light (por defecto) ──────────────────────────────────────── */
+:root {
+  /* Fondos */
+  --bg:           #F5F7FF;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F0F4FF;
+
+  /* Bordes */
+  --border:       #E2E8F0;
+  --border-light: #E8EEFF;
+
+  /* Texto */
+  --text:         #1A1D2E;
+  --text-muted:   #8A93A8;
+  --text-hint:    #C0C8D8;
+
+  /* Componentes */
+  --sidebar-bg:   #FFFFFF;
+  --input-bg:     #F5F7FF;
+  --modal-bg:     #FFFFFF;
+
+  /* Efectos */
+  --card-shadow:  0 1px 6px #00000008;
+  --overlay:      #0006;
+
+  /* Semánticos */
+  --danger-bg:    #FFF0F3;
+  --danger-text:  #E53E5A;
+  --accent-bg:    #F0F4FF;
+  --accent-text:  #4F7BF7;
+
+  /* Marca (fijos, no cambian con el tema) */
+  --brand-blue:   #4F7BF7;
+  --brand-green:  #34C78A;
+  --brand-red:    #F74F7B;
+  --brand-orange: #F7874F;
+  --brand-purple: #A44FF7;
+  --brand-yellow: #F7C24F;
+  --brand-cyan:   #4FC7F7;
+  --brand-gray:   #8A93A8;
+}
+
+/* ── Dark ─────────────────────────────────────────────────────── */
+:root.dark {
+  --bg:           #0F1117;
+  --surface:      #1A1D27;
+  --surface-alt:  #22263A;
+  --border:       #2A2D3A;
+  --border-light: #2A2D3A;
+  --text:         #F0F2FF;
+  --text-muted:   #8A93A8;
+  --text-hint:    #3A4560;
+  --sidebar-bg:   #141722;
+  --input-bg:     #22263A;
+  --modal-bg:     #1A1D27;
+  --card-shadow:  0 2px 12px #0004;
+  --overlay:      #000A;
+  --danger-bg:    #2D1520;
+  --danger-text:  #F87A8D;
+  --accent-bg:    #1E2340;
+  --accent-text:  #7DA0FF;
+}
+
+/* ── Fondo base: evita el flash blanco al cargar o animar páginas ── */
+html, body, #root {
+  background-color: var(--bg);
+  min-height: 100%;
+}

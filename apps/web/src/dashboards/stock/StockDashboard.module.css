@@ -1,0 +1,697 @@
+/* ════════════════════════════════════════════════════════════════
+   StockDashboard
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar ── */
+.sidebarHeader {
+  padding:       20px 20px 14px;
+  border-bottom: 1.5px solid var(--border-light);
+}
+
+.sidebarLogo {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin-bottom: 2px;
+}
+
+.sidebarTitle {
+  font-weight: 800;
+  font-size:   16px;
+  color:       var(--text);
+}
+
+.sidebarSubtitle {
+  font-size: 12px;
+  color:     var(--text-muted);
+}
+
+.sidebarTopActions {
+  display: flex;
+  gap:     6px;
+  margin:  10px 12px 0;
+}
+
+.btnNav {
+  flex:        1;
+  background:  var(--surface-alt);
+  border:      1px solid var(--border);
+  border-radius: 8px;
+  padding:     7px 12px;
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--brand-blue);
+  cursor:      pointer;
+  font-family: inherit;
+  transition:  opacity 0.12s;
+}
+.btnNav:hover { opacity: 0.8; }
+
+.btnTheme {
+  background:   var(--surface-alt);
+  border:       1px solid var(--border);
+  border-radius: 8px;
+  padding:      7px 10px;
+  font-size:    14px;
+  cursor:       pointer;
+}
+
+/* ── Sidebar nav items ── */
+.sectionLabel {
+  padding:        14px 12px 4px;
+  font-size:      11px;
+  font-weight:    700;
+  color:          var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.sectionLabelRow {
+  padding:         14px 12px 4px;
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+}
+
+.btnAddCat {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  color:       var(--brand-green);
+  font-size:   12px;
+  font-weight: 700;
+  padding:     2px 4px;
+  font-family: inherit;
+  transition:  opacity 0.12s;
+}
+.btnAddCat:hover { opacity: 0.75; }
+
+.navItem {
+  display:     flex;
+  align-items: center;
+  width:       100%;
+  padding:     9px 16px;
+  background:  transparent;
+  border:      none;
+  border-left: 3px solid transparent;
+  cursor:      pointer;
+  font-family: inherit;
+  font-weight: 500;
+  font-size:   13px;
+  color:       var(--text-muted);
+  text-align:  left;
+  transition:  background 0.12s, color 0.12s;
+}
+.navItem:hover { background: var(--surface-alt); }
+
+.navItemActive {
+  font-weight: 700;
+  border-left-color: var(--brand-green);
+  background: color-mix(in srgb, var(--brand-green) 8%, transparent);
+  color: var(--brand-green);
+}
+
+/* ── Categoría nav (con color dinámico) ── */
+.catRow {
+  display:     flex;
+  align-items: center;
+}
+
+.catBtn {
+  flex:            1;
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         9px 8px 9px 16px;
+  background:      transparent;
+  border:          none;
+  border-left:     3px solid transparent;
+  cursor:          pointer;
+  font-family:     inherit;
+  font-weight:     500;
+  font-size:       13px;
+  color:           var(--text-muted);
+  transition:      background 0.12s, color 0.12s;
+}
+/* Estado activo: usa --cat-color definida como inline style */
+.catBtnActive {
+  font-weight: 700;
+  border-left-color: var(--cat-color);
+  background:  color-mix(in srgb, var(--cat-color) 8%, transparent);
+  color:       var(--cat-color);
+}
+
+.catDeleteBtn {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  padding:     6px 12px 6px 4px;
+  font-size:   13px;
+  color:       var(--text-muted);
+  opacity:     0.5;
+  transition:  opacity 0.12s;
+}
+.catDeleteBtn:hover { opacity: 1; }
+
+.catAlert {
+  font-size:    10px;
+  font-weight:  700;
+  color:        var(--brand-red);
+  background:   color-mix(in srgb, var(--brand-red) 10%, transparent);
+  border-radius: 99px;
+  padding:      1px 6px;
+}
+
+/* ── Sidebar bottom ── */
+.sidebarBottom {
+  margin-top: auto;
+  padding:    0 12px 12px;
+  display:    flex;
+  flex-direction: column;
+  gap:        8px;
+}
+
+.btnAddProduct {
+  width:         100%;
+  background:    var(--brand-green);
+  color:         #fff;
+  border:        none;
+  border-radius: 8px;
+  padding:       9px 20px;
+  font-weight:   700;
+  font-size:     14px;
+  cursor:        pointer;
+  font-family:   inherit;
+  transition:    opacity 0.12s;
+}
+.btnAddProduct:hover { opacity: 0.88; }
+
+.scanActions {
+  display: flex;
+  gap:     6px;
+}
+
+.btnScan {
+  flex:          1;
+  border-radius: 8px;
+  padding:       8px 6px;
+  cursor:        pointer;
+  font-family:   inherit;
+  font-weight:   700;
+  font-size:     12px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           4px;
+  transition:    opacity 0.12s;
+}
+.btnScan:hover { opacity: 0.8; }
+
+.btnScanAdd {
+  background: color-mix(in srgb, var(--brand-green) 12%, transparent);
+  color:      var(--brand-green);
+  border:     1.5px solid color-mix(in srgb, var(--brand-green) 30%, transparent);
+}
+
+.btnScanConsume {
+  background: color-mix(in srgb, var(--brand-orange) 12%, transparent);
+  color:      var(--brand-orange);
+  border:     1.5px solid color-mix(in srgb, var(--brand-orange) 30%, transparent);
+}
+
+/* ── Main content ── */
+.content {
+  padding: 28px 32px;
+}
+
+.contentMobile {
+  padding: 16px 14px 80px;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  text-align:    center;
+  padding:       48px 20px;
+  background:    var(--surface);
+  border-radius: 16px;
+  border:        1px solid var(--border);
+}
+
+.emptyIcon   { font-size: 40px; margin-bottom: 12px; }
+.emptyTitle  { font-weight: 700; font-size: 16px; color: var(--text); margin-bottom: 8px; }
+.emptyDesc   { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+.btnSeed {
+  background:    var(--brand-green);
+  border:        none;
+  border-radius: 9px;
+  padding:       10px 20px;
+  font-weight:   700;
+  font-size:     14px;
+  color:         #fff;
+  cursor:        pointer;
+  font-family:   inherit;
+}
+
+/* ── Stats grid ── */
+.statsGrid {
+  display:       grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:           14px;
+  margin-bottom: 24px;
+}
+
+.statsMobileGrid {
+  gap: 8px;
+}
+
+.statCard {
+  border-radius: 14px;
+  padding:       14px 18px;
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  border:        1.5px solid transparent;
+}
+
+.statCardMobile { padding: 10px; }
+
+.statValue {
+  font-weight: 800;
+  font-size:   22px;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size:   11px;
+  font-weight: 500;
+  margin-top:  2px;
+}
+
+/* ── Search + filter bar ── */
+.searchBar {
+  display:       flex;
+  gap:           10px;
+  margin-bottom: 20px;
+  align-items:   center;
+}
+
+.searchWrap {
+  flex:          1;
+  position:      relative;
+  display:       flex;
+  align-items:   center;
+}
+
+.searchIcon {
+  position:  absolute;
+  left:      12px;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.searchInput {
+  width:         100%;
+  padding:       10px 12px 10px 36px;
+  border-radius: 10px;
+  border:        1.5px solid var(--border);
+  background:    var(--input-bg);
+  color:         var(--text);
+  font-family:   inherit;
+  font-size:     14px;
+  outline:       none;
+  transition:    border-color 0.15s;
+}
+.searchInput:focus        { border-color: var(--brand-blue); }
+.searchInput::placeholder { color: var(--text-hint); }
+
+.btnShare {
+  background:   color-mix(in srgb, var(--brand-green) 12%, transparent);
+  color:        var(--brand-green);
+  border:       1.5px solid color-mix(in srgb, var(--brand-green) 25%, transparent);
+  border-radius: 10px;
+  padding:      9px 14px;
+  font-size:    13px;
+  font-weight:  700;
+  cursor:       pointer;
+  font-family:  inherit;
+  white-space:  nowrap;
+  display:      flex;
+  align-items:  center;
+  gap:          6px;
+  transition:   opacity 0.12s;
+}
+.btnShare:hover { opacity: 0.8; }
+
+/* ── View header ── */
+.viewHeader {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   12px;
+}
+
+.viewHeaderLeft {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.btnBack {
+  background: none;
+  border:     none;
+  cursor:     pointer;
+  font-size:  18px;
+  color:      var(--text-muted);
+  padding:    0;
+}
+
+.viewTitle {
+  font-weight: 700;
+  font-size:   16px;
+  color:       var(--text);
+}
+
+.btnAddInCat {
+  background:    var(--brand-green);
+  border:        none;
+  border-radius: 8px;
+  padding:       8px 16px;
+  font-weight:   700;
+  font-size:     13px;
+  color:         #fff;
+  cursor:        pointer;
+  font-family:   inherit;
+}
+
+/* ── Items list ── */
+.itemList {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+/* ── Item card ── */
+.itemCard {
+  background:     var(--surface);
+  border-radius:  14px;
+  padding:        14px 16px;
+  border-left:    4px solid transparent;
+  box-shadow:     var(--card-shadow);
+  border:         1px solid var(--border);
+  display:        flex;
+  align-items:    flex-start;
+  justify-content: space-between;
+  gap:            12px;
+}
+
+.itemInfo { flex: 1; min-width: 0; }
+
+.itemHeader {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+}
+
+.itemName {
+  font-weight: 700;
+  font-size:   14px;
+  color:       var(--text);
+}
+
+.itemStatusBadge {
+  font-size:     11px;
+  font-weight:   700;
+  border-radius: 6px;
+  padding:       2px 8px;
+  border:        1px solid transparent;
+}
+
+.itemMeta {
+  display:   flex;
+  gap:       12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.itemMetaText {
+  font-size: 12px;
+  color:     var(--text-muted);
+}
+
+.itemActions {
+  display:    flex;
+  gap:        5px;
+  flex-shrink: 0;
+}
+
+.btnIconSm {
+  background:    var(--surface-alt);
+  border:        none;
+  border-radius: 7px;
+  padding:       5px 9px;
+  cursor:        pointer;
+  font-size:     12px;
+  transition:    opacity 0.12s;
+}
+.btnIconSm:hover { opacity: 0.75; }
+
+.btnIconDanger {
+  background: var(--danger-bg);
+}
+
+/* ── Category overview grid ── */
+.catGrid {
+  display: grid;
+  gap:     16px;
+}
+
+.catOverviewCard {
+  background:    var(--surface);
+  border-radius: 16px;
+  padding:       18px 20px;
+  border:        2px solid transparent;
+  cursor:        pointer;
+  box-shadow:    var(--card-shadow);
+  transition:    transform 0.12s, box-shadow 0.12s;
+}
+.catOverviewCard:hover {
+  transform:  translateY(-2px);
+  box-shadow: 0 6px 20px #00000012;
+}
+
+.catOverviewHeader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   14px;
+}
+
+.catOverviewLeft {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.catIcon {
+  width:           42px;
+  height:          42px;
+  border-radius:   12px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       22px;
+}
+
+.catOverviewName  { font-weight: 700; font-size: 15px; color: var(--text); }
+.catOverviewCount { font-size: 11px; color: var(--text-muted); }
+
+.catStatusBadge {
+  font-size:     11px;
+  font-weight:   700;
+  border-radius: 6px;
+  padding:       3px 8px;
+  border:        1px solid transparent;
+}
+
+.catProgressBar {
+  height:        6px;
+  border-radius: 99px;
+  background:    var(--surface-alt);
+  overflow:      hidden;
+  display:       flex;
+  margin-bottom: 12px;
+}
+
+.catStatsRow {
+  display: flex;
+  gap:     12px;
+}
+
+.catStatBox {
+  flex:         1;
+  text-align:   center;
+  padding:      6px 0;
+  border-radius: 8px;
+}
+
+.catStatValue {
+  font-weight: 800;
+  font-size:   18px;
+}
+
+.catStatLabel {
+  font-size:  10px;
+  color:      var(--text-muted);
+  font-weight: 500;
+}
+
+.catOverviewCta {
+  margin-top:  10px;
+  font-size:   11px;
+  font-weight: 600;
+  text-align:  right;
+}
+
+/* ── Scan feedback toast ── */
+.scanToast {
+  position:      fixed;
+  bottom:        28px;
+  left:          50%;
+  transform:     translateX(-50%);
+  z-index:       400;
+  background:    #1A2340;
+  border-radius: 14px;
+  padding:       14px 20px;
+  box-shadow:    0 8px 32px #0005;
+  min-width:     260px;
+  max-width:     90vw;
+  font-family:   inherit;
+  animation:     fh-slide-up 0.25s ease;
+}
+
+.toastRow     { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.toastName    { font-weight: 700; color: #fff; font-size: 15px; }
+.toastSub     { font-size: 13px; font-weight: 600; }
+.toastSpinner {
+  display:       inline-block;
+  width:         16px;
+  height:        16px;
+  border:        2px solid var(--brand-blue);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation:     spin 0.7s linear infinite;
+}
+
+/* ── Modal: add category ── */
+.catModalLabel {
+  font-size:   13px;
+  font-weight: 600;
+  color:       var(--text-muted);
+  display:     block;
+  margin-bottom: 4px;
+}
+
+.colorSwatches {
+  display:       flex;
+  gap:           8px;
+  margin-bottom: 18px;
+  flex-wrap:     wrap;
+}
+
+.colorSwatch {
+  width:         28px;
+  height:        28px;
+  border-radius: 50%;
+  cursor:        pointer;
+  padding:       0;
+  border:        3px solid transparent;
+  transition:    border-color 0.12s, transform 0.1s;
+}
+.colorSwatch:hover       { transform: scale(1.1); }
+.colorSwatchActive       { border-color: var(--text); }
+
+/* ── Modal: confirm-delete category ── */
+.deleteModalTitle {
+  margin:      0 0 8px;
+  font-weight: 700;
+  font-size:   15px;
+  color:       var(--text);
+}
+
+.deleteModalDesc {
+  margin:    0 0 16px;
+  font-size: 13px;
+  color:     var(--text-muted);
+}
+
+/* ── Product modal: form ── */
+.formGrid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   12px;
+  margin-bottom:         12px;
+}
+
+.formField {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  margin-bottom:  12px;
+}
+
+.formLabel {
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--text-muted);
+}
+
+.formActions {
+  display:         flex;
+  gap:             8px;
+  justify-content: flex-end;
+  margin-top:      4px;
+}
+
+/* ── Product modal: scanner section ── */
+.barcodeRow {
+  display:     flex;
+  gap:         8px;
+  align-items: center;
+}
+
+.barcodeInput {
+  flex: 1;
+}
+
+.btnScanSmall {
+  background:    var(--brand-green);
+  color:         #fff;
+  border:        none;
+  border-radius: 8px;
+  padding:       9px 12px;
+  cursor:        pointer;
+  font-size:     14px;
+  flex-shrink:   0;
+}
+
+/* ── Mobile floating action ── */
+.mobileAdd {
+  position:        fixed;
+  bottom:          20px;
+  right:           16px;
+  z-index:         100;
+  background:      var(--brand-green);
+  color:           #fff;
+  border:          none;
+  border-radius:   50%;
+  width:           52px;
+  height:          52px;
+  font-size:       24px;
+  cursor:          pointer;
+  box-shadow:      0 4px 16px color-mix(in srgb, var(--brand-green) 40%, transparent);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+}

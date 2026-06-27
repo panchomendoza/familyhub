@@ -1,0 +1,171 @@
+/* ── Design tokens ── */
+@import "./styles/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════════════
+   Base / Reset
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, Oxygen, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Scrollbar
+   ════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar             { width: 6px; height: 6px; }
+::-webkit-scrollbar-track       { background: transparent; }
+::-webkit-scrollbar-thumb       { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ════════════════════════════════════════════════════════════════
+   Animaciones globales
+   ════════════════════════════════════════════════════════════════ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fh-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fh-slide-up {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes fh-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fh-page-enter {
+  animation: fh-page-enter 0.22s ease both;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Utilidades de tema globales
+   ════════════════════════════════════════════════════════════════ */
+.fh-text        { color: var(--text); }
+.fh-text-muted  { color: var(--text-muted); }
+.fh-text-hint   { color: var(--text-hint); }
+.fh-text-danger { color: var(--danger-text); }
+.fh-text-accent { color: var(--accent-text); }
+
+.fh-surface     { background: var(--surface); }
+.fh-surface-alt { background: var(--surface-alt); }
+.fh-danger-bg   { background: var(--danger-bg); }
+.fh-accent-bg   { background: var(--accent-bg); }
+
+/* ════════════════════════════════════════════════════════════════
+   Componentes base reutilizables
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Card ── */
+.fh-card {
+  background:    var(--surface);
+  border:        1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:    var(--card-shadow);
+  padding: 10px;
+}
+
+/* ── Input ── */
+.fh-input {
+  width:         100%;
+  padding:       9px 12px;
+  border-radius: 9px;
+  border:        1.5px solid var(--border);
+  background:    var(--input-bg);
+  color:         var(--text);
+  font-family:   inherit;
+  font-size:     14px;
+  outline:       none;
+  transition:    border-color 0.15s;
+  box-sizing:    border-box;
+}
+.fh-input:focus          { border-color: var(--brand-blue); }
+.fh-input::placeholder   { color: var(--text-hint); }
+
+/* ── Buttons ── */
+.fh-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  padding:         9px 18px;
+  border-radius:   9px;
+  border:          none;
+  font-family:     inherit;
+  font-size:       14px;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      opacity 0.12s, transform 0.1s;
+  white-space:     nowrap;
+}
+.fh-btn:disabled            { opacity: 0.55; cursor: not-allowed; }
+.fh-btn:active:not(:disabled){ transform: scale(0.98); }
+
+.fh-btn-primary { background: var(--brand-blue);  color: #fff; }
+.fh-btn-success { background: var(--brand-green); color: #fff; }
+.fh-btn-danger  { background: var(--danger-text); color: #fff; }
+.fh-btn-ghost   { background: var(--surface-alt); color: var(--text-muted); border: 1.5px solid var(--border); }
+.fh-btn-accent  { background: var(--accent-bg);   color: var(--accent-text); border: 1.5px solid color-mix(in srgb, var(--accent-text) 25%, transparent); }
+
+/* ── Badge ── */
+.fh-badge {
+  display:       inline-block;
+  padding:       2px 8px;
+  border-radius: 99px;
+  font-size:     11px;
+  font-weight:   700;
+}
+
+/* ── Spinner ── */
+.fh-spinner {
+  display:       inline-block;
+  width:         14px;
+  height:        14px;
+  border:        2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation:     spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+/* ── Alert ── */
+.fh-alert-danger {
+  background:    var(--danger-bg);
+  color:         var(--danger-text);
+  border-radius: 8px;
+  padding:       9px 12px;
+  font-size:     13px;
+  font-weight:   500;
+}
+
+/* ── Section label ── */
+.fh-section-label {
+  font-size:      11px;
+  font-weight:    700;
+  color:          var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
