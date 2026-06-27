@@ -24,8 +24,13 @@ Thumbs.db
 .idea/
 *.swp
 
-# Test coverage
+# pnpm store local (si pnpm lo crea dentro del proyecto)
+.pnpm-store/
+
+# Test coverage y caché de Vitest
 coverage/
+.vitest-cache/
+*.test-results/
 
 # Next/Vite cache
 .next/

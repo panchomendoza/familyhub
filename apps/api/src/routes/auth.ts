@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 const { sign, verify } = jwt;
 import { nanoid } from "nanoid";
 import { db } from "../lib/db.js";
+import { sanitizeUser } from "../lib/user.js";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email.js";
 import { strictRateLimiter, loginRateLimiter, registerRateLimiter } from "../middleware/rateLimiter.js";
 import {
@@ -752,7 +753,3 @@ async function getFamiliesForUser(userId: string) {
   }));
 }
 
-function sanitizeUser(user: { id: string; name: string; email: string; [key: string]: unknown }) {
-  const { password: _, ...safe } = user as typeof user & { password?: string };
-  return safe;
-}

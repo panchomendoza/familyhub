@@ -13,7 +13,9 @@
     "lint":        "pnpm -r lint",
     "db:push":     "pnpm --filter @familyhub/api db:push",
     "db:migrate":  "pnpm --filter @familyhub/api db:migrate",
-    "db:studio":   "pnpm --filter @familyhub/api db:studio"
+    "db:studio":   "pnpm --filter @familyhub/api db:studio",
+    "test":        "pnpm --filter @familyhub/api test",
+    "test:watch":  "pnpm --filter @familyhub/api test:watch"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
