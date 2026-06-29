@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
 import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
 import { initCsrf, type ApiError } from "@/lib/api";
+import { features } from "@/config/features";
 import {
   AuthBg, AuthCard, AuthInput, AuthBtn, AuthError, AuthSuccess,
   AuthDivider, GoogleBtn, AuthLink,
@@ -94,22 +95,24 @@ export default function LoginPage() {
           />
 
           {/* ¿Olvidaste? */}
-          <div style={{ textAlign: "right", marginBottom: 20, marginTop: -6 }}>
-            <button
-              type="button"
-              onClick={() => navigate("/forgot-password")}
-              style={{ background: "none", border: "none", color: "#5566AA", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              ¿Olvidaste tu contraseña?
-            </button>
-          </div>
+          {features.forgotPassword && (
+            <div style={{ textAlign: "right", marginBottom: 20, marginTop: -6 }}>
+              <button
+                type="button"
+                onClick={() => navigate("/forgot-password")}
+                style={{ background: "none", border: "none", color: "#5566AA", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
 
           <AuthBtn type="submit" loading={loading} disabled={!email || !password}>
             Entrar →
           </AuthBtn>
         </form>
 
-        {googleAvailable && (
+        {features.googleLogin && googleAvailable && (
           <>
             <AuthDivider />
             <AuthError msg={googleError} />
@@ -129,10 +132,12 @@ export default function LoginPage() {
           </>
         )}
 
-        <p style={{ marginTop: 20, fontSize: 12, color: "#5566AA", textAlign: "center" }}>
-          ¿No tienes cuenta?{" "}
-          <AuthLink label="Regístrate" onClick={() => navigate("/register")} />
-        </p>
+        {features.register && (
+          <p style={{ marginTop: 20, fontSize: 12, color: "#5566AA", textAlign: "center" }}>
+            ¿No tienes cuenta?{" "}
+            <AuthLink label="Regístrate" onClick={() => navigate("/register")} />
+          </p>
+        )}
       </AuthCard>
     </AuthBg>
   );

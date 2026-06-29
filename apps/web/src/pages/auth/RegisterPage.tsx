@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
 import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
 import { initCsrf, type ApiError } from "@/lib/api";
+import { features } from "@/config/features";
 
 interface ErrBody { error: string }
 
@@ -110,7 +111,7 @@ function StepInfo({ onNext }: { onNext: (name: string, email: string) => void })
       </p>
 
       {/* ── Google sign-up ── */}
-      {googleAvailable && (
+      {features.googleLogin && googleAvailable && (
         <>
           {googleError && (
             <div style={{ ...S.error, marginBottom: 14 }}>{googleError}</div>

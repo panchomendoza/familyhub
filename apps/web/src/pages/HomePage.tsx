@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme";
 import { useWindowWidth } from "@/hooks/useWindowWidth";
 import { HomePageSkeleton } from "@/components/ui/DashboardSkeletons";
 import { api } from "@/lib/api";
+import { features } from "@/config/features";
 import type { Family, DashboardId } from "@familyhub/types";
 
 /* CSS vars como strings — usado en inline styles de todos los sub-componentes */
@@ -24,10 +25,8 @@ const V = {
    Constantes
    ════════════════════════════════════ */
 
-const DASHBOARDS: {
-  id: DashboardId; path: string; emoji: string;
-  title: string; description: string; color: string; comingSoon: boolean;
-}[] = [
+type DashboardDef = { id: DashboardId; path: string; emoji: string; title: string; description: string; color: string; comingSoon: boolean; enabled: boolean; };
+const DASHBOARDS: DashboardDef[] = ([
   {
     id:          "health",
     path:        "/health",
@@ -36,6 +35,7 @@ const DASHBOARDS: {
     description: "Controles médicos, vacunas, visitas y gráficos de crecimiento",
     color:       "#34C78A",
     comingSoon:  false,
+    enabled:     features.dashboards.health,
   },
   {
     id:          "expenses",
@@ -45,6 +45,7 @@ const DASHBOARDS: {
     description: "Control mensual, cuotas, presupuesto 50/30/20 y análisis",
     color:       "#4F7BF7",
     comingSoon:  false,
+    enabled:     features.dashboards.expenses,
   },
   {
     id:          "stock",
@@ -54,6 +55,7 @@ const DASHBOARDS: {
     description: "Inventario por categoría, escáner de barras y lista de compras",
     color:       "#F7874F",
     comingSoon:  false,
+    enabled:     features.dashboards.stock,
   },
   {
     id:          "vehicles",
@@ -63,6 +65,7 @@ const DASHBOARDS: {
     description: "Bitácora de mantenciones, documentos, gastos y alertas por vehículo",
     color:       "#4F7BF7",
     comingSoon:  false,
+    enabled:     features.dashboards.vehicles,
   },
   {
     id:          "tasks",
@@ -72,8 +75,9 @@ const DASHBOARDS: {
     description: "Organiza y asigna tareas domésticas a los miembros del hogar",
     color:       "#A44FF7",
     comingSoon:  true,
+    enabled:     features.dashboards.tasks,
   },
-];
+] as DashboardDef[]).filter(d => d.enabled);
 
 /* ════════════════════════════════════
    Componente principal

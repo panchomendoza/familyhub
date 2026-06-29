@@ -7,6 +7,7 @@ import { GlobalLoader }        from "@/components/ui/GlobalLoader";
 import { ErrorBoundary }       from "@/components/ui/ErrorBoundary";
 import { api, initCsrf }     from "@/lib/api";
 import type { User, Family } from "@familyhub/types";
+import { features } from "@/config/features";
 
 interface AuthSession {
   user: User; families: Family[];
@@ -165,9 +166,9 @@ const router = createBrowserRouter([
 
       // ── Rutas públicas ──
       { path: "/login",           element: <Suspense fallback={<PageLoader />}><LoginPage /></Suspense> },
-      { path: "/register",        element: <Suspense fallback={<PageLoader />}><RegisterPage /></Suspense> },
-      { path: "/verify",          element: <Suspense fallback={<PageLoader />}><VerifyPage /></Suspense> },
-      { path: "/forgot-password", element: <Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense> },
+      { path: "/register",        element: features.register       ? <Suspense fallback={<PageLoader />}><RegisterPage /></Suspense>       : <Navigate to="/login" replace /> },
+      { path: "/verify",          element: features.register       ? <Suspense fallback={<PageLoader />}><VerifyPage /></Suspense>          : <Navigate to="/login" replace /> },
+      { path: "/forgot-password", element: features.forgotPassword ? <Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense> : <Navigate to="/login" replace /> },
 
       // ── Rutas autenticadas ──
       {
@@ -180,28 +181,28 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute requiredDashboard="health" />,
             children: [
-              { path: "/health/*", element: dash(<HealthDashboard />,   "Salud") },
-              { path: "/salud/*",  element: dash(<HealthDashboard />,   "Salud") },
+              { path: "/health/*", element: features.dashboards.health   ? dash(<HealthDashboard />,   "Salud")      : <Navigate to="/home" replace /> },
+              { path: "/salud/*",  element: features.dashboards.health   ? dash(<HealthDashboard />,   "Salud")      : <Navigate to="/home" replace /> },
             ],
           },
           {
             element: <ProtectedRoute requiredDashboard="stock" />,
             children: [
-              { path: "/stock/*",  element: dash(<StockDashboard />,    "Inventario") },
+              { path: "/stock/*",  element: features.dashboards.stock    ? dash(<StockDashboard />,    "Inventario") : <Navigate to="/home" replace /> },
             ],
           },
           {
             element: <ProtectedRoute requiredDashboard="expenses" />,
             children: [
-              { path: "/expenses/*", element: dash(<ExpensesDashboard />, "Gastos") },
-              { path: "/gastos/*",   element: dash(<ExpensesDashboard />, "Gastos") },
+              { path: "/expenses/*", element: features.dashboards.expenses ? dash(<ExpensesDashboard />, "Gastos")   : <Navigate to="/home" replace /> },
+              { path: "/gastos/*",   element: features.dashboards.expenses ? dash(<ExpensesDashboard />, "Gastos")   : <Navigate to="/home" replace /> },
             ],
           },
           {
             element: <ProtectedRoute requiredDashboard="vehicles" />,
             children: [
-              { path: "/vehicles/*", element: dash(<VehiclesDashboard />, "Vehículos") },
-              { path: "/autos/*",    element: dash(<VehiclesDashboard />, "Vehículos") },
+              { path: "/vehicles/*", element: features.dashboards.vehicles ? dash(<VehiclesDashboard />, "Vehículos") : <Navigate to="/home" replace /> },
+              { path: "/autos/*",    element: features.dashboards.vehicles ? dash(<VehiclesDashboard />, "Vehículos") : <Navigate to="/home" replace /> },
             ],
           },
         ],
