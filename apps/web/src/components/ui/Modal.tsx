@@ -22,24 +22,18 @@ export function Modal({
   if (!open) return null;
 
   return (
-    // Overlay: en mobile siempre bottom sheet, en sm+ centrado (a menos que bottomSheet=true)
     <div
       className={clsx(
-        "fixed inset-0 z-[300] flex bg-black/50 overscroll-contain",
-        bottomSheet
-          ? "items-end"
-          : "items-end sm:items-center sm:justify-center sm:p-5"
+        "fixed inset-0 z-[300] flex bg-black/50 overscroll-contain p-4",
+        bottomSheet ? "items-end p-0" : "items-center justify-center"
       )}
-      onClick={onClose}
     >
       <div
         className={clsx(
-          "w-full overflow-y-auto border",
-          "bg-[var(--modal-bg)] border-[var(--border)]",
-          // Mobile: siempre bottom sheet con bordes arriba y padding home indicator
-          "rounded-t-2xl max-h-[92vh] p-5 pb-8",
-          // sm+: dialog centrado con bordes completos (solo cuando no es bottomSheet)
-          !bottomSheet && "sm:rounded-2xl sm:max-h-[90vh] sm:p-6 sm:pb-6"
+          "w-full overflow-y-auto border bg-[var(--modal-bg)] border-[var(--border)]",
+          bottomSheet
+            ? "rounded-t-2xl max-h-[92vh] p-5 pb-8"
+            : "rounded-2xl max-h-[90vh] p-5"
         )}
         style={{
           maxWidth:  bottomSheet ? undefined : maxWidth,

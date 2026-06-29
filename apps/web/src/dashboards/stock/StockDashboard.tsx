@@ -10,6 +10,8 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StockSkeleton } from "@/components/ui/DashboardSkeletons";
 import { ApiError } from "@/lib/api";
+import { parseApiError, fieldError, type ValidationErrors } from "@/lib/apiErrors";
+import { FieldError as FErr } from "@/components/ui/FieldError";
 import {
   useStockCategories, useSeedStockCategories,
   useCreateStockCategory, useDeleteStockCategory,
@@ -25,6 +27,7 @@ import styles from "./StockDashboard.module.css";
    ════════════════════════════════════ */
 const UNITS     = ["unidades", "kg", "g", "litros", "ml", "rollos", "bolsas", "cajas", "paquetes"];
 const LOCATIONS = ["Despensa", "Refrigerador", "Freezer", "Baño", "Lavandería", "Bodega", "Otro"];
+
 const CAT_COLORS = ["#34C78A","#4F7BF7","#F7874F","#A44FF7","#F74F7B","#F7C24F","#4FC7F7","#8A93A8"];
 
 function stockBg(dark: boolean) {
@@ -248,15 +251,19 @@ const EMPTY_FORM: ItemForm = {
   unit:"unidades", location:"Despensa", notes:"", barcode:"",
 };
 
-function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanner, isMobile }: {
+function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanner, isMobile, apiErrors, isSaving }: {
   open: boolean; initial: StockItem | null; categories: StockCategory[];
   onSave: (d: ItemInput) => void; onClose: () => void;
   onOpenScanner: () => void; isMobile: boolean;
+  apiErrors?: ValidationErrors | null;
+  isSaving?: boolean;
 }) {
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!open) return;
+    setLocalErrors({});
     setForm(initial ? {
       name: initial.name, categoryId: initial.categoryId,
       quantity: String(initial.quantity), minimum: String(initial.minimum),
@@ -266,11 +273,28 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const set = (k: keyof ItemForm, v: string) => {
+    setForm(p => ({ ...p, [k]: v }));
+    setLocalErrors(p => ({ ...p, [k]: "" }));
+  };
   const f = (k: keyof ItemForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+    set(k, e.target.value);
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.name.trim())             e.name     = "Obligatorio";
+    else if (form.name.length > 100)   e.name     = "Máximo 100 caracteres";
+    if (!form.categoryId)              e.categoryId = "Selecciona una categoría";
+    if (Number(form.quantity) < 0)     e.quantity = "No puede ser negativo";
+    if (Number(form.minimum) < 0)      e.minimum  = "No puede ser negativo";
+    setLocalErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  const err = (k: string) => localErrors[k] || fieldError(apiErrors, k);
 
   function handleSave() {
-    if (!form.name.trim() || !form.categoryId) return;
+    if (!validate()) return;
     onSave({
       name: form.name.trim(), categoryId: form.categoryId,
       quantity: Number(form.quantity) || 0, minimum: Number(form.minimum) || 0,
@@ -286,7 +310,14 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
         <button onClick={onClose} className="fh-btn-ghost" style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, padding:0 }} >✕</button>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 14px" }}>
+      {/* Banner de error general */}
+      {apiErrors?.message && (
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20">
+          <p className="text-[var(--danger-text)] text-sm font-semibold">{apiErrors.message}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-x-3.5">
         {[
           { label:"NOMBRE",           key:"name"       as const, type:"text",   col:2, ph:"Ej: Arroz, Shampoo...", auto:true },
           { label:"CATEGORÍA",        key:"categoryId" as const, type:"select", col:2 },
@@ -296,7 +327,7 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
           { label:"UBICACIÓN",        key:"location"   as const, type:"select-loc",   col:1 },
           { label:"NOTAS (opcional)", key:"notes"      as const, type:"text",   col:1, ph:"Marca preferida, obs..." },
         ].map(({ label, key, type, col, ph, auto }) => (
-          <div key={key} style={{ marginBottom:12, gridColumn:`span ${col}` }}>
+          <div key={key} className={col === 2 ? "mb-3 col-span-full" : "mb-3"}>
             <label className={styles.catModalLabel} style={{ textTransform:"uppercase", fontSize:11 }}>{label}</label>
             {type === "select" ? (
               <select className="fh-input" value={form[key]} onChange={f(key)}>
@@ -321,11 +352,12 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
                 onChange={f(key)}
               />
             )}
+            <FErr msg={err(key)} />
           </div>
         ))}
 
         {/* Barcode */}
-        <div style={{ marginBottom:12, gridColumn:"span 1" }}>
+        <div className="mb-3">
           <label className={styles.catModalLabel} style={{ textTransform:"uppercase", fontSize:11 }}>CÓDIGO DE BARRAS</label>
           <div style={{ display:"flex", gap:6 }}>
             <input className="fh-input" placeholder="Ej: 7891234567890" value={form.barcode} onChange={f("barcode")} />
@@ -335,12 +367,15 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
               title="Escanear"
             >📷</button>
           </div>
+          <FErr msg={err("barcode")} />
         </div>
       </div>
 
       <div className={styles.formActions}>
-        <button onClick={onClose} className="fh-btn fh-btn-ghost">Cancelar</button>
-        <button onClick={handleSave} className="fh-btn fh-btn-success">Guardar</button>
+        <button onClick={onClose} disabled={isSaving} className="fh-btn fh-btn-ghost">Cancelar</button>
+        <button onClick={handleSave} disabled={isSaving} className="fh-btn fh-btn-success">
+          {isSaving ? "Guardando..." : "Guardar"}
+        </button>
       </div>
     </Modal>
   );
@@ -473,6 +508,7 @@ export default function StockDashboard() {
   const [listView, setListView]             = useState(false);
   const [drawerOpen, setDrawer]             = useState(false);
   const [productModal, setProductModal]     = useState(false);
+  const [itemFormErrors, setItemFormErrors] = useState<ValidationErrors | null>(null);
   const [editItem, setEditItem]             = useState<StockItem | null>(null);
   const [delItem, setDelItem]               = useState<StockItem | null>(null);
   const [scanner, setScanner]               = useState<"add"|"consume"|null>(null);
@@ -481,6 +517,7 @@ export default function StockDashboard() {
   const [addCatOpen, setAddCatOpen]         = useState(false);
   const [deleteCat, setDeleteCat]           = useState<StockCategory | null>(null);
   const [query, setQuery]                   = useState("");
+  const [fabOpen, setFabOpen]               = useState(false);
 
   const { data: categories = [], isLoading } = useStockCategories(familyId);
   const mutSeed      = useSeedStockCategories(familyId);
@@ -520,10 +557,15 @@ export default function StockDashboard() {
   function openEdit(item: StockItem) { setEditItem(item); setProductModal(true); }
 
   async function handleSaveItem(data: ItemInput) {
+    setItemFormErrors(null);
     const finalData = pendingBarcode ? { ...data, barcode: pendingBarcode } : data;
-    if (editItem) await mutUpdate.mutateAsync({ id: editItem.id, data: finalData });
-    else          await mutCreate.mutateAsync(finalData);
-    setProductModal(false); setPendingBarcode(null);
+    try {
+      if (editItem) await mutUpdate.mutateAsync({ id: editItem.id, data: finalData });
+      else          await mutCreate.mutateAsync(finalData);
+      setProductModal(false); setPendingBarcode(null);
+    } catch(err) {
+      setItemFormErrors(parseApiError(err));
+    }
   }
 
   async function handleScan(barcode: string) {
@@ -653,12 +695,9 @@ export default function StockDashboard() {
       sidebarContent={<SidebarContent />}
       mobileTitle={<>
         <span style={{ fontSize:20 }}>🛒</span>
-        <span className="fh-text" style={{ fontWeight:800, fontSize:15 }}>Stock del Hogar</span>
+        <span className="fh-text" style={{ fontWeight:800, fontSize:15 }}>Stock</span>
       </>}
       mobileActions={<>
-        <button className="fh-btn fh-btn-success" style={{ padding:"6px 12px", fontSize:13, borderRadius:7 }} onClick={() => openAdd()}>+</button>
-        <button className={`${styles.btnScan} ${styles.btnScanAdd}`}    style={{ padding:"5px 10px", fontSize:16, borderRadius:7 }} onClick={() => setScanner("add")}>📥</button>
-        <button className={`${styles.btnScan} ${styles.btnScanConsume}`} style={{ padding:"5px 10px", fontSize:16, borderRadius:7 }} onClick={() => setScanner("consume")}>📤</button>
         <button className={styles.btnTheme} style={{ borderRadius:7, padding:"5px 9px" }} onClick={toggleTheme}>{isDark ? "☀️" : "🌙"}</button>
         <button className={styles.btnNav}   style={{ borderRadius:7, padding:"5px 10px" }} onClick={() => navigate("/home")}>🏠</button>
       </>}
@@ -713,7 +752,7 @@ export default function StockDashboard() {
                     </button>
                   )}
                 </div>
-                <div className={styles.catGrid} style={{ gridTemplateColumns: isMobile ? "1fr" : "repeat(2,1fr)" }}>
+                <div className={`${styles.catGrid} grid-cols-1 sm:grid-cols-2`}>
                   {categories.map(cat => {
                     const items   = cat.items;
                     const catOk   = items.filter(i => i.quantity >= i.minimum);
@@ -829,9 +868,62 @@ export default function StockDashboard() {
         )}
       </div>
 
-      {/* FAB mobile — portal al body para evitar que overflow-y:auto del padre rompa position:fixed */}
+      {/* Speed Dial FAB mobile */}
       {!isDesktop && !isLoading && categories.length > 0 && createPortal(
-        <button className={styles.mobileAdd} onClick={() => openAdd()}>+</button>,
+        <>
+          {/* Backdrop para cerrar al tocar fuera */}
+          {fabOpen && (
+            <div className="fixed inset-0 z-[199]" onClick={() => setFabOpen(false)} />
+          )}
+
+          {/* Sub-acciones — apiladas sobre el FAB */}
+          {fabOpen && (
+            <>
+              <style>{`
+                @keyframes fabIn {
+                  from { opacity: 0; transform: translateY(16px) scale(0.8); }
+                  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+                }
+              `}</style>
+              <div
+                className="fixed right-4 z-[201] flex flex-col gap-3 items-end"
+                style={{ bottom: "calc(1.25rem + 56px + 16px)" }}
+              >
+                {[
+                  { label:"Escanear consumo", icon:"📤", color:"#F7874F", action: () => { setFabOpen(false); setScanner("consume"); } },
+                  { label:"Escanear agregar", icon:"📥", color:"#4F7BF7", action: () => { setFabOpen(false); setScanner("add"); } },
+                  { label:"Agregar producto", icon:"✚",  color:"#34C78A", action: () => { setFabOpen(false); openAdd(); } },
+                ].map(({ label, icon, color, action }, i) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-3"
+                    style={{
+                      animation: `fabIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) both`,
+                      animationDelay: `${i * 60}ms`,
+                    }}
+                  >
+                    <span className="text-white text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap"
+                      style={{ background: color, boxShadow: `0 2px 8px ${color}55` }}>
+                      {label}
+                    </span>
+                    <button
+                      onClick={action}
+                      className="w-12 h-12 rounded-full border-0 cursor-pointer text-white text-xl flex items-center justify-center shrink-0"
+                      style={{ background: color, boxShadow: `0 4px 16px ${color}66` }}
+                    >{icon}</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Botón principal */}
+          <button
+            className={`${styles.mobileAdd} fixed bottom-5 right-4 z-[200]`}
+            onClick={() => setFabOpen(v => !v)}
+            style={{ transform: fabOpen ? "rotate(45deg)" : "none", transition:"transform 0.2s" }}
+          >+</button>
+        </>,
         document.body
       )}
 
@@ -872,9 +964,11 @@ export default function StockDashboard() {
       <ModalProduct
         open={productModal} initial={editItem} categories={categories}
         onSave={handleSaveItem}
-        onClose={() => { setProductModal(false); setPendingBarcode(null); }}
+        onClose={() => { setProductModal(false); setPendingBarcode(null); setItemFormErrors(null); }}
         onOpenScanner={() => setScanner("add")}
         isMobile={isMobile}
+        apiErrors={itemFormErrors}
+        isSaving={mutCreate.isPending || mutUpdate.isPending}
       />
 
       <ConfirmDialog

@@ -13,6 +13,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { compressFile, fmtFileSize } from "@/lib/imageUtils";
+import { parseApiError, fieldError, type ValidationErrors } from "@/lib/apiErrors";
+import { FieldError as FErr } from "@/components/ui/FieldError";
 import { VehiclesSidebarSkeleton, VehiclesContentSkeleton } from "@/components/ui/DashboardSkeletons";
 import {
   useVehicles, useVehicleDetail,
@@ -295,20 +297,61 @@ const EMPTY_VEHICLE_FORM: VehicleFormState = {
   doors: "4", currentKm: "0",
 };
 
-function VehicleForm({ initial, isEdit, onSave, onClose }: {
+
+function VehicleForm({ initial, isEdit, onSave, onClose, apiErrors, isSaving }: {
   initial: VehicleFormState; isEdit: boolean;
   onSave: (d: VehicleFormState) => void; onClose: () => void;
+  apiErrors?: ValidationErrors | null;
+  isSaving?: boolean;
 }) {
   const [f, setF] = useState<VehicleFormState>(initial);
-  const set = <K extends keyof VehicleFormState>(k: K, v: VehicleFormState[K]) =>
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+
+  const set = <K extends keyof VehicleFormState>(k: K, v: VehicleFormState[K]) => {
     setF(p => ({ ...p, [k]: v }));
-  const ok = f.brand.trim() && f.model.trim() && f.licensePlate.trim();
+    setLocalErrors(p => ({ ...p, [k as string]: "" }));
+  };
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!f.brand.trim())             e.brand        = "Obligatorio";
+    else if (f.brand.length > 80)    e.brand        = "Máximo 80 caracteres";
+    if (!f.model.trim())             e.model        = "Obligatorio";
+    else if (f.model.length > 80)    e.model        = "Máximo 80 caracteres";
+    if (!f.licensePlate.trim())      e.licensePlate = "Obligatorio";
+    else if (f.licensePlate.length > 20) e.licensePlate = "Máximo 20 caracteres";
+    const y = Number(f.year);
+    if (!f.year || isNaN(y) || y < 1900 || y > new Date().getFullYear() + 1)
+      e.year = `Entre 1900 y ${new Date().getFullYear() + 1}`;
+    if (f.vin  && f.vin.length  > 17)  e.vin      = "Máximo 17 caracteres";
+    if (f.color && f.color.length > 40) e.color    = "Máximo 40 caracteres";
+    if (f.engineCC && Number(f.engineCC) < 50) e.engineCC = "Mínimo 50 cc";
+    if (f.doors && (Number(f.doors) < 1 || Number(f.doors) > 10)) e.doors = "Entre 1 y 10";
+    if (Number(f.currentKm) < 0)    e.currentKm    = "No puede ser negativo";
+    setLocalErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  const err = (k: string) => localErrors[k] || fieldError(apiErrors, k);
 
   return (
     <div style={{ padding: "24px 28px" }}>
       <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700, color: V.text }}>
         {isEdit ? "Editar vehículo" : "Agregar vehículo"}
       </h2>
+
+      {/* Banner de error general */}
+      {apiErrors?.formErrors?.length ? (
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20">
+          {apiErrors.formErrors.map((e, i) => (
+            <p key={i} className="text-[var(--danger-text)] text-sm font-semibold">{e}</p>
+          ))}
+        </div>
+      ) : apiErrors?.message && Object.keys(apiErrors.fieldErrors).length === 0 ? (
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20">
+          <p className="text-[var(--danger-text)] text-sm font-semibold">{apiErrors.message}</p>
+        </div>
+      ) : null}
 
       {/* Tipo */}
       <div style={{ marginBottom: 14 }}>
@@ -329,42 +372,49 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
       </div>
 
       {/* Marca / Modelo / Año */}
-      <div className="grid grid-cols-3 gap-3 mb-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>MARCA *</label>
           <input style={INP} value={f.brand} onChange={e => set("brand", e.target.value)} placeholder="Toyota" />
+          <FErr msg={err("brand")} />
         </div>
         <div>
           <label style={LBL}>MODELO *</label>
           <input style={INP} value={f.model} onChange={e => set("model", e.target.value)} placeholder="Corolla" />
+          <FErr msg={err("model")} />
         </div>
         <div>
           <label style={LBL}>AÑO</label>
           <input style={INP} type="number" value={f.year} onChange={e => set("year", e.target.value)} min={1960} max={2030} />
+          <FErr msg={err("year")} />
         </div>
       </div>
 
       {/* Patente / VIN / Color */}
-      <div className="grid grid-cols-3 gap-3 mb-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>PATENTE *</label>
           <input style={INP} value={f.licensePlate} onChange={e => set("licensePlate", e.target.value.toUpperCase())} placeholder="BBCD-12" />
+          <FErr msg={err("licensePlate")} />
         </div>
         <div>
           <label style={LBL}>N° CHASIS / VIN</label>
           <input style={INP} value={f.vin} onChange={e => set("vin", e.target.value.toUpperCase())} placeholder="JT2BF22K..." />
+          <FErr msg={err("vin")} />
         </div>
         <div>
           <label style={LBL}>COLOR</label>
           <input style={INP} value={f.color} onChange={e => set("color", e.target.value)} placeholder="Gris" />
+          <FErr msg={err("color")} />
         </div>
       </div>
 
       {/* Motor / Combustible / Transmisión */}
-      <div className="grid grid-cols-3 gap-3 mb-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>CILINDRADA (CC)</label>
           <input style={INP} type="number" value={f.engineCC} onChange={e => set("engineCC", e.target.value)} placeholder="1800" min={0} />
+          <FErr msg={err("engineCC")} />
         </div>
         <div>
           <label style={LBL}>COMBUSTIBLE</label>
@@ -373,6 +423,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
+          <FErr msg={err("fuelType")} />
         </div>
         <div>
           <label style={LBL}>TRANSMISIÓN</label>
@@ -380,6 +431,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
             <option value="manual">Manual</option>
             <option value="automatic">Automático</option>
           </select>
+          <FErr msg={err("transmission")} />
         </div>
       </div>
 
@@ -388,10 +440,12 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
         <div>
           <label style={LBL}>N° PUERTAS</label>
           <input style={INP} type="number" value={f.doors} onChange={e => set("doors", e.target.value)} min={0} max={6} />
+          <FErr msg={err("doors")} />
         </div>
         <div>
           <label style={LBL}>ODÓMETRO ACTUAL (KM)</label>
           <input style={INP} type="number" value={f.currentKm} onChange={e => set("currentKm", e.target.value)} min={0} />
+          <FErr msg={err("currentKm")} />
         </div>
       </div>
 
@@ -401,13 +455,13 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
           border: "1px solid var(--border)", background: "transparent",
           color: V.textMuted, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
         }}>Cancelar</button>
-        <button onClick={() => ok && onSave(f)} disabled={!ok} style={{
+        <button onClick={() => !isSaving && validate() && onSave(f)} disabled={isSaving} style={{
           padding: "9px 20px", borderRadius: 8, border: "none",
-          background: ok ? `linear-gradient(135deg, ${ACCENT}, #A44FF7)` : "var(--border)",
+          background: isSaving ? "var(--border)" : `linear-gradient(135deg, ${ACCENT}, #A44FF7)`,
           color: "#fff", fontSize: 14, fontWeight: 700,
-          cursor: ok ? "pointer" : "not-allowed", fontFamily: "inherit",
+          cursor: isSaving ? "not-allowed" : "pointer", fontFamily: "inherit",
         }}>
-          {isEdit ? "Guardar cambios" : "Agregar vehículo"}
+          {isSaving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agregar vehículo"}
         </button>
       </div>
     </div>
@@ -428,9 +482,10 @@ const EMPTY_MAINT: MaintFormState = {
   nextKm: "", nextDate: "",
 };
 
-function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
+function MaintenanceForm({ initial, vehicle, onSave, onClose, isSaving }: {
   initial: MaintFormState; vehicle: Vehicle;
   onSave: (d: MaintFormState) => void; onClose: () => void;
+  isSaving?: boolean;
 }) {
   const [f, setF] = useState<MaintFormState>(initial);
   const set = <K extends keyof MaintFormState>(k: K, v: string) =>
@@ -465,7 +520,7 @@ function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
           onChange={e => set("description", e.target.value)} placeholder="Detalles de la mantención..." />
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>ODÓMETRO (KM)</label>
           <input type="number" style={INP} value={f.odometer}
@@ -502,12 +557,12 @@ function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
           border: "1px solid var(--border)", background: "transparent",
           color: V.textMuted, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
         }}>Cancelar</button>
-        <button onClick={() => ok && onSave(f)} disabled={!ok} style={{
+        <button onClick={() => !isSaving && ok && onSave(f)} disabled={!ok || isSaving} style={{
           padding: "9px 20px", borderRadius: 8, border: "none",
-          background: ok ? `linear-gradient(135deg, ${ACCENT}, #34C78A)` : "var(--border)",
+          background: (!ok || isSaving) ? "var(--border)" : `linear-gradient(135deg, ${ACCENT}, #34C78A)`,
           color: "#fff", fontSize: 14, fontWeight: 700,
-          cursor: ok ? "pointer" : "not-allowed", fontFamily: "inherit",
-        }}>Guardar mantención</button>
+          cursor: (!ok || isSaving) ? "not-allowed" : "pointer", fontFamily: "inherit",
+        }}>{isSaving ? "Guardando..." : "Guardar mantención"}</button>
       </div>
     </div>
   );
@@ -527,9 +582,10 @@ const EMPTY_DOC: DocFormState = {
   attachmentName: "", attachmentData: "",
 };
 
-function DocumentForm({ initial, vehicle, onSave, onClose }: {
+function DocumentForm({ initial, vehicle, onSave, onClose, isSaving }: {
   initial: DocFormState; vehicle: Vehicle;
   onSave: (d: DocFormState) => void; onClose: () => void;
+  isSaving?: boolean;
 }) {
   const [f,           setF]          = useState<DocFormState>(initial);
   const [fileError,   setFileError]   = useState<string | null>(null);
@@ -663,12 +719,12 @@ function DocumentForm({ initial, vehicle, onSave, onClose }: {
           border: "1px solid var(--border)", background: "transparent",
           color: V.textMuted, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
         }}>Cancelar</button>
-        <button onClick={() => ok && onSave(f)} disabled={!ok} style={{
+        <button onClick={() => !isSaving && ok && onSave(f)} disabled={!ok || isSaving} style={{
           padding: "9px 20px", borderRadius: 8, border: "none",
-          background: ok ? `linear-gradient(135deg, ${ACCENT}, #A44FF7)` : "var(--border)",
+          background: (!ok || isSaving) ? "var(--border)" : `linear-gradient(135deg, ${ACCENT}, #A44FF7)`,
           color: "#fff", fontSize: 14, fontWeight: 700,
-          cursor: ok ? "pointer" : "not-allowed", fontFamily: "inherit",
-        }}>Guardar documento</button>
+          cursor: (!ok || isSaving) ? "not-allowed" : "pointer", fontFamily: "inherit",
+        }}>{isSaving ? "Guardando..." : "Guardar documento"}</button>
       </div>
     </div>
   );
@@ -686,9 +742,10 @@ const EMPTY_EXP: ExpFormState = {
   amount: "", odometer: "", liters: "",
 };
 
-function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit }: {
+function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit, isSaving }: {
   initial: ExpFormState; vehicle: Vehicle; isEdit?: boolean;
   onSave: (d: ExpFormState) => void; onClose: () => void;
+  isSaving?: boolean;
 }) {
   const [f, setF] = useState<ExpFormState>(initial);
   const set = <K extends keyof ExpFormState>(k: K, v: string) =>
@@ -724,7 +781,7 @@ function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit }: {
           onChange={e => set("description", e.target.value)} placeholder="Detalle del gasto..." />
       </div>
 
-      <div className={isFuel ? "grid grid-cols-3 gap-3 mb-3.5" : "grid grid-cols-2 gap-3 mb-3.5"}>
+      <div className={isFuel ? "grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3.5" : "grid grid-cols-2 gap-3 mb-3.5"}>
         <div>
           <label style={LBL}>MONTO ($) *</label>
           <input type="number" style={INP} value={f.amount}
@@ -750,12 +807,12 @@ function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit }: {
           border: "1px solid var(--border)", background: "transparent",
           color: V.textMuted, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
         }}>Cancelar</button>
-        <button onClick={() => ok && onSave(f)} disabled={!ok} style={{
+        <button onClick={() => !isSaving && ok && onSave(f)} disabled={!ok || isSaving} style={{
           padding: "9px 20px", borderRadius: 8, border: "none",
-          background: ok ? `linear-gradient(135deg, ${ACCENT}, #F7874F)` : "var(--border)",
+          background: (!ok || isSaving) ? "var(--border)" : `linear-gradient(135deg, ${ACCENT}, #F7874F)`,
           color: "#fff", fontSize: 14, fontWeight: 700,
-          cursor: ok ? "pointer" : "not-allowed", fontFamily: "inherit",
-        }}>{isEdit ? "Guardar cambios" : "Guardar gasto"}</button>
+          cursor: (!ok || isSaving) ? "not-allowed" : "pointer", fontFamily: "inherit",
+        }}>{isSaving ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar gasto"}</button>
       </div>
     </div>
   );
@@ -992,7 +1049,8 @@ export default function VehiclesDashboard() {
   const mutDeleteExp     = useDeleteExpense(familyId);
 
   /* ── Modal state ── */
-  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [showVehicleForm, setShowVehicleForm]       = useState(false);
+  const [vehicleFormErrors, setVehicleFormErrors]   = useState<ValidationErrors | null>(null);
   const [editingVehicle,  setEditingVehicle]  = useState<Vehicle | null>(null);
   const [showMaintForm,   setShowMaintForm]   = useState(false);
   const [editingMaint,    setEditingMaint]    = useState<VehicleMaintenance | null>(null);
@@ -1005,7 +1063,8 @@ export default function VehiclesDashboard() {
   const [deleteTarget,    setDeleteTarget]    = useState<{ type: string; id: string; label: string } | null>(null);
 
   /* ── Handlers: Vehicles ── */
-  const handleSaveVehicle = useCallback((d: VehicleFormState) => {
+  const handleSaveVehicle = useCallback(async (d: VehicleFormState) => {
+    setVehicleFormErrors(null);
     const payload = {
       type:         d.type,
       brand:        d.brand.trim(),
@@ -1020,45 +1079,47 @@ export default function VehiclesDashboard() {
       ...(d.engineCC ? { engineCC: Number(d.engineCC) } : {}),
       ...(d.doors    ? { doors:    Number(d.doors)    } : {}),
     };
-    if (editingVehicle) {
-      mutUpdateVehicle.mutate(
-        { vehicleId: editingVehicle.id, data: payload },
-        { onSuccess: () => { setShowVehicleForm(false); setEditingVehicle(null); } },
-      );
-    } else {
-      mutCreateVehicle.mutate(payload, {
-        onSuccess: (res) => {
-          setShowVehicleForm(false);
-          if (res.data?.vehicle?.id) setSelectedId(res.data.vehicle.id);
-        },
-      });
+    try {
+      if (editingVehicle) {
+        await mutUpdateVehicle.mutateAsync({ vehicleId: editingVehicle.id, data: payload });
+        setShowVehicleForm(false); setEditingVehicle(null);
+      } else {
+        const res = await mutCreateVehicle.mutateAsync(payload);
+        setShowVehicleForm(false);
+        if (res.data?.vehicle?.id) setSelectedId(res.data.vehicle.id);
+      }
+    } catch(err) {
+      setVehicleFormErrors(parseApiError(err));
     }
   }, [editingVehicle, mutCreateVehicle, mutUpdateVehicle]);
 
-  const handleSell = useCallback((date: string, price: string) => {
+  const handleSell = useCallback(async (date: string, price: string) => {
     if (!vehicle) return;
-    mutSell.mutate({
-      vehicleId: vehicle.id,
-      soldDate:  toISO(date),
-      ...(price ? { soldPrice: Number(price) } : {}),
-    }, { onSuccess: () => setShowSellForm(false) });
+    try {
+      await mutSell.mutateAsync({
+        vehicleId: vehicle.id,
+        soldDate:  toISO(date),
+        ...(price ? { soldPrice: Number(price) } : {}),
+      });
+      setShowSellForm(false);
+    } catch { /* error handled by React Query */ }
   }, [vehicle, mutSell]);
 
-  const handleUndoSell = useCallback(() => {
+  const handleUndoSell = useCallback(async () => {
     if (!vehicle) return;
-    mutUnsell.mutate(vehicle.id);
+    try { await mutUnsell.mutateAsync(vehicle.id); } catch { /* noop */ }
   }, [vehicle, mutUnsell]);
 
-  const handleKmUpdate = useCallback((km: number) => {
+  const handleKmUpdate = useCallback(async (km: number) => {
     if (!vehicle) return;
-    mutUpdateKm.mutate(
-      { vehicleId: vehicle.id, currentKm: km },
-      { onSuccess: () => setShowKmForm(false) },
-    );
+    try {
+      await mutUpdateKm.mutateAsync({ vehicleId: vehicle.id, currentKm: km });
+      setShowKmForm(false);
+    } catch { /* noop */ }
   }, [vehicle, mutUpdateKm]);
 
   /* ── Handlers: Maintenance ── */
-  const handleSaveMaint = useCallback((d: MaintFormState) => {
+  const handleSaveMaint = useCallback(async (d: MaintFormState) => {
     if (!vehicle) return;
     const odometer = Number(d.odometer) || vehicle.currentKm;
     const payload = {
@@ -1071,21 +1132,19 @@ export default function VehiclesDashboard() {
       ...(d.nextKm   ? { nextKm:   Number(d.nextKm) } : {}),
       ...(d.nextDate ? { nextDate:  toISO(d.nextDate) } : {}),
     };
-    if (editingMaint) {
-      mutUpdateMaint.mutate(
-        { vehicleId: vehicle.id, recordId: editingMaint.id, data: payload },
-        { onSuccess: () => { setShowMaintForm(false); setEditingMaint(null); } },
-      );
-    } else {
-      mutCreateMaint.mutate(
-        { vehicleId: vehicle.id, data: payload },
-        { onSuccess: () => setShowMaintForm(false) },
-      );
-    }
+    try {
+      if (editingMaint) {
+        await mutUpdateMaint.mutateAsync({ vehicleId: vehicle.id, recordId: editingMaint.id, data: payload });
+        setShowMaintForm(false); setEditingMaint(null);
+      } else {
+        await mutCreateMaint.mutateAsync({ vehicleId: vehicle.id, data: payload });
+        setShowMaintForm(false);
+      }
+    } catch { /* noop */ }
   }, [vehicle, editingMaint, mutCreateMaint, mutUpdateMaint]);
 
   /* ── Handlers: Documents ── */
-  const handleSaveDoc = useCallback((d: DocFormState) => {
+  const handleSaveDoc = useCallback(async (d: DocFormState) => {
     if (!vehicle) return;
     const payload = {
       type:       d.type,
@@ -1097,21 +1156,19 @@ export default function VehiclesDashboard() {
       ...(d.attachmentName ? { attachmentName:  d.attachmentName } : {}),
       ...(d.attachmentData ? { attachmentData:  d.attachmentData } : {}),
     };
-    if (editingDoc) {
-      mutUpdateDoc.mutate(
-        { vehicleId: vehicle.id, docId: editingDoc.id, data: payload },
-        { onSuccess: () => { setShowDocForm(false); setEditingDoc(null); } },
-      );
-    } else {
-      mutCreateDoc.mutate(
-        { vehicleId: vehicle.id, data: payload },
-        { onSuccess: () => setShowDocForm(false) },
-      );
-    }
+    try {
+      if (editingDoc) {
+        await mutUpdateDoc.mutateAsync({ vehicleId: vehicle.id, docId: editingDoc.id, data: payload });
+        setShowDocForm(false); setEditingDoc(null);
+      } else {
+        await mutCreateDoc.mutateAsync({ vehicleId: vehicle.id, data: payload });
+        setShowDocForm(false);
+      }
+    } catch { /* noop */ }
   }, [vehicle, editingDoc, mutCreateDoc, mutUpdateDoc]);
 
   /* ── Handlers: Expenses ── */
-  const handleSaveExp = useCallback((d: ExpFormState) => {
+  const handleSaveExp = useCallback(async (d: ExpFormState) => {
     if (!vehicle) return;
     const payload = {
       date:        toISO(d.date),
@@ -1121,17 +1178,15 @@ export default function VehiclesDashboard() {
       ...(d.odometer ? { odometer: Number(d.odometer) } : {}),
       ...(d.liters   ? { liters:   Number(d.liters)   } : {}),
     };
-    if (editingExp) {
-      mutUpdateExp.mutate(
-        { vehicleId: vehicle.id, expenseId: editingExp.id, data: payload },
-        { onSuccess: () => { setShowExpForm(false); setEditingExp(null); } },
-      );
-    } else {
-      mutCreateExp.mutate(
-        { vehicleId: vehicle.id, data: payload },
-        { onSuccess: () => setShowExpForm(false) },
-      );
-    }
+    try {
+      if (editingExp) {
+        await mutUpdateExp.mutateAsync({ vehicleId: vehicle.id, expenseId: editingExp.id, data: payload });
+        setShowExpForm(false); setEditingExp(null);
+      } else {
+        await mutCreateExp.mutateAsync({ vehicleId: vehicle.id, data: payload });
+        setShowExpForm(false);
+      }
+    } catch { /* noop */ }
   }, [vehicle, editingExp, mutCreateExp, mutUpdateExp]);
 
   /* ── Handler: Delete ── */
@@ -1181,9 +1236,12 @@ export default function VehiclesDashboard() {
           border: "1px solid var(--border)", background: "transparent",
           color: V.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
         }}>← Volver al inicio</button>
-        <Modal open={showVehicleForm} onClose={() => setShowVehicleForm(false)} maxWidth={640}>
+        <Modal open={showVehicleForm} onClose={() => { setShowVehicleForm(false); setVehicleFormErrors(null); }} maxWidth={640}>
           <VehicleForm initial={EMPTY_VEHICLE_FORM} isEdit={false}
-            onSave={handleSaveVehicle} onClose={() => setShowVehicleForm(false)} />
+            onSave={handleSaveVehicle}
+            onClose={() => { setShowVehicleForm(false); setVehicleFormErrors(null); }}
+            apiErrors={vehicleFormErrors}
+            isSaving={mutCreateVehicle.isPending || mutUpdateVehicle.isPending} />
         </Modal>
       </div>
     );
@@ -1704,7 +1762,7 @@ export default function VehiclesDashboard() {
       </DashboardLayout>
 
       {/* ── Modals ── */}
-      <Modal open={showVehicleForm} onClose={() => { setShowVehicleForm(false); setEditingVehicle(null); }} maxWidth={640}>
+      <Modal open={showVehicleForm} onClose={() => { setShowVehicleForm(false); setEditingVehicle(null); setVehicleFormErrors(null); }} maxWidth={640}>
         <VehicleForm
           isEdit={!!editingVehicle}
           initial={editingVehicle ? {
@@ -1722,7 +1780,9 @@ export default function VehiclesDashboard() {
             currentKm:    String(editingVehicle.currentKm),
           } : EMPTY_VEHICLE_FORM}
           onSave={handleSaveVehicle}
-          onClose={() => { setShowVehicleForm(false); setEditingVehicle(null); }}
+          onClose={() => { setShowVehicleForm(false); setEditingVehicle(null); setVehicleFormErrors(null); }}
+          apiErrors={vehicleFormErrors}
+          isSaving={mutCreateVehicle.isPending || mutUpdateVehicle.isPending}
         />
       </Modal>
 
@@ -1742,6 +1802,7 @@ export default function VehiclesDashboard() {
             vehicle={vehicle}
             onSave={handleSaveMaint}
             onClose={() => { setShowMaintForm(false); setEditingMaint(null); }}
+            isSaving={mutCreateMaint.isPending || mutUpdateMaint.isPending}
           />
         )}
       </Modal>
@@ -1762,6 +1823,7 @@ export default function VehiclesDashboard() {
             vehicle={vehicle}
             onSave={handleSaveDoc}
             onClose={() => { setShowDocForm(false); setEditingDoc(null); }}
+            isSaving={mutCreateDoc.isPending || mutUpdateDoc.isPending}
           />
         )}
       </Modal>
@@ -1781,6 +1843,7 @@ export default function VehiclesDashboard() {
             vehicle={vehicle}
             onSave={handleSaveExp}
             onClose={() => { setShowExpForm(false); setEditingExp(null); }}
+            isSaving={mutCreateExp.isPending || mutUpdateExp.isPending}
           />
         )}
       </Modal>

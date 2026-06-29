@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth.store";
 import { api, ApiError } from "@/lib/api";
+import { parseApiError, fieldError, type ValidationErrors } from "@/lib/apiErrors";
+import { FieldError as FErr } from "@/components/ui/FieldError";
 import { useTheme } from "@/lib/theme";
 import { useWindowWidth } from "@/hooks/useWindowWidth";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -74,6 +76,7 @@ function StatCard({ label, value, sub, color, icon, onClick }: {
     </div>
   );
 }
+
 
 function ProgressBar({ value, max, color, bgColor, height = 8 }: {
   value: number; max: number; color: string; bgColor?: string; height?: number;
@@ -423,10 +426,12 @@ const EMPTY_FORM: ExpenseForm = {
   notes: "", installments: 0, currentInstallment: 1, paid: false,
 };
 
-function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMobile }: {
+function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMobile, apiErrors, isSaving }: {
   open: boolean; initial: ExpenseWithCategory | null; categories: ExpenseCategory[];
   banks: string[]; onSave: (d: ExpenseInput) => void;
   onClose: () => void; isMobile: boolean;
+  apiErrors?: ValidationErrors | null;
+  isSaving?: boolean;
 }) {
   const [form, setForm] = useState<ExpenseForm>(() =>
     initial
@@ -436,10 +441,12 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
           paid: initial.paid }
       : { ...EMPTY_FORM, bank: banks[0] ?? "", categoryId: categories[0]?.id ?? "" }
   );
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
 
   // Resetear el form cada vez que el modal se abre (initial cambia después del mount)
   useEffect(() => {
     if (!open) return;
+    setLocalErrors({});
     setForm(initial
       ? { name: initial.name, amount: String(initial.amount), bank: initial.bank,
           categoryId: initial.categoryId ?? categories[0]?.id ?? "",
@@ -450,8 +457,28 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const set = <K extends keyof ExpenseForm>(k: K, v: ExpenseForm[K]) => {
+    setForm(p => ({ ...p, [k]: v }));
+    setLocalErrors(p => ({ ...p, [k as string]: "" }));
+  };
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.name.trim())             e.name   = "Obligatorio";
+    else if (form.name.length > 120)   e.name   = "Máximo 120 caracteres";
+    if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
+                                        e.amount = "Debe ser mayor a 0";
+    if (Number(form.installments) < 0) e.installments = "No puede ser negativo";
+    if (Number(form.installments) > 0 && (Number(form.currentInstallment) < 1 || Number(form.currentInstallment) > Number(form.installments)))
+                                        e.currentInstallment = `Entre 1 y ${form.installments}`;
+    setLocalErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  const err = (k: string) => localErrors[k] || fieldError(apiErrors, k);
+
   function handleSave() {
-    if (!form.name.trim() || !form.amount) return;
+    if (!validate()) return;
     onSave({
       name: form.name.trim(), amount: Number(form.amount),
       bank: form.bank, categoryId: form.categoryId || null,
@@ -467,29 +494,39 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
         <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, color: V.textMuted }}>✕</button>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 14px" }}>
-        <div style={{ marginBottom:12, gridColumn:"span 2" }}>
+      {/* Banner de error general */}
+      {apiErrors?.message && (
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20">
+          <p className="text-[var(--danger-text)] text-sm font-semibold">{apiErrors.message}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-x-3.5">
+        <div className="mb-3 col-span-full">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Nombre</label>
           <input autoFocus className="fh-input" placeholder="Ej: Netflix, Bencina..."
-            value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+            value={form.name} onChange={e => set("name", e.target.value)} />
+          <FErr msg={err("name")} />
         </div>
-        <div style={{ marginBottom:12 }}>
+        <div className="mb-3">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Monto ($)</label>
           <input className="fh-input" type="number" placeholder="0"
-            value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+            value={form.amount} onChange={e => set("amount", e.target.value)} />
+          <FErr msg={err("amount")} />
         </div>
-        <div style={{ marginBottom:12 }}>
+        <div className="mb-3">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Banco / Billetera</label>
-          <select className="fh-input" value={form.bank} onChange={e => setForm(p => ({ ...p, bank: e.target.value }))}>
+          <select className="fh-input" value={form.bank} onChange={e => set("bank", e.target.value)}>
             <option value="">Sin banco</option>
             {banks.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
+          <FErr msg={err("bank")} />
         </div>
-        <div style={{ marginBottom:12, gridColumn:"span 2" }}>
+        <div className="mb-3 col-span-full">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:6, textTransform:"uppercase" }}>Categoría</label>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
             {categories.map(c => (
-              <button key={c.id} onClick={() => setForm(p => ({ ...p, categoryId: c.id }))} style={{
+              <button key={c.id} onClick={() => set("categoryId", c.id)} style={{
                 padding:"6px 12px", borderRadius:8,
                 border: `1.5px solid ${form.categoryId === c.id ? c.color : V.border}`,
                 background: form.categoryId === c.id ? c.color + "20" : V.surfaceAlt,
@@ -499,28 +536,33 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
             ))}
           </div>
         </div>
-        <div style={{ marginBottom:12 }}>
+        <div className="mb-3">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuotas (0 = sin cuotas)</label>
           <input className="fh-input" type="number" min="0" placeholder="0"
-            value={form.installments} onChange={e => setForm(p => ({ ...p, installments: Number(e.target.value) }))} />
+            value={form.installments} onChange={e => set("installments", Number(e.target.value))} />
+          <FErr msg={err("installments")} />
         </div>
         {Number(form.installments) > 0 && (
-          <div style={{ marginBottom:12 }}>
+          <div className="mb-3">
             <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuota actual</label>
             <input className="fh-input" type="number" min="1" max={form.installments}
-              value={form.currentInstallment} onChange={e => setForm(p => ({ ...p, currentInstallment: Number(e.target.value) }))} />
+              value={form.currentInstallment} onChange={e => set("currentInstallment", Number(e.target.value))} />
+            <FErr msg={err("currentInstallment")} />
           </div>
         )}
-        <div style={{ marginBottom:14, gridColumn:"span 2" }}>
+        <div className="mb-3.5 col-span-full">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Observación (opcional)</label>
           <input className="fh-input" placeholder="Nota adicional..."
-            value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+            value={form.notes} onChange={e => set("notes", e.target.value)} />
+          <FErr msg={err("notes")} />
         </div>
       </div>
 
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-        <button onClick={onClose} className="fh-btn fh-btn-ghost">Cancelar</button>
-        <button onClick={handleSave} className="fh-btn" style={{ background:"#F7874F", color:"#fff", borderRadius:8, padding:"9px 20px", fontWeight:700, fontSize:14, border:"none", cursor:"pointer", fontFamily:"inherit" }}>Guardar</button>
+        <button onClick={onClose} disabled={isSaving} className="fh-btn fh-btn-ghost">Cancelar</button>
+        <button onClick={handleSave} disabled={isSaving} className="fh-btn" style={{ background: isSaving ? "var(--border)" : "#F7874F", color:"#fff", borderRadius:8, padding:"9px 20px", fontWeight:700, fontSize:14, border:"none", cursor: isSaving ? "not-allowed" : "pointer", fontFamily:"inherit" }}>
+          {isSaving ? "Guardando..." : "Guardar"}
+        </button>
       </div>
     </Modal>
   );
@@ -572,6 +614,7 @@ export default function ExpensesDashboard() {
   const [view, setView] = useState<"resumen" | "gastos" | "historial" | "config">("resumen");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modal, setModal] = useState<null | "income" | "expense" | "del">(null);
+  const [expenseFormErrors, setExpenseFormErrors] = useState<ValidationErrors | null>(null);
   const [editExpense,      setEditExpense]      = useState<ExpenseWithCategory | null>(null);
   const [deleteTarget,     setDeleteTarget]     = useState<ExpenseWithCategory | null>(null);
   const fromMonth = month === 0 ? 11 : month - 1;
@@ -680,9 +723,14 @@ export default function ExpensesDashboard() {
   function openDel(g: ExpenseWithCategory)  { setDeleteTarget(g); setModal("del"); }
 
   async function handleSaveExpense(data: ExpenseInput) {
-    if (editExpense) await mutUpdate.mutateAsync({ id: editExpense.id, data });
-    else             await mutCreate.mutateAsync(data);
-    setModal(null);
+    setExpenseFormErrors(null);
+    try {
+      if (editExpense) await mutUpdate.mutateAsync({ id: editExpense.id, data });
+      else             await mutCreate.mutateAsync(data);
+      setModal(null);
+    } catch(err) {
+      setExpenseFormErrors(parseApiError(err));
+    }
   }
 
   async function handleMarkAllPaid() {
@@ -809,7 +857,7 @@ export default function ExpensesDashboard() {
 
             {!isLoading && (
               <div className="fh-page-enter">
-                <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap:12, marginBottom:20 }}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                   <StatCard label="Ingreso del mes"    value={fmtCLP(income)}        icon="💵" color="#34C78A" onClick={() => setModal("income")} />
                   <StatCard label="Comprometido"       value={fmtCLP(totalExpenses)} icon="📋" color="#F7874F" sub={income > 0 ? `${Math.round(expensePct)}% ingreso` : undefined} />
                   <StatCard label="✓ Pagado"          value={fmtCLP(totalPaid)}     icon="✅" color="#34C78A" sub={`${expenses.filter(g => g.paid).length} ítems`} />
@@ -845,7 +893,7 @@ export default function ExpensesDashboard() {
 
                 {/* 2 cols: bank + category */}
                 {(byBank.length > 0 || byCategory.length > 0) && (
-                  <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap:14, marginBottom:16 }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
                     <div className="fh-card">
                       <div className="fh-text" style={{ fontWeight:700, fontSize:14, marginBottom:12 }}>Por banco / billetera</div>
                       {byBank.length === 0 && <div className="fh-text-muted" style={{ fontSize:13 }}>Sin datos de banco.</div>}
@@ -1188,7 +1236,11 @@ export default function ExpensesDashboard() {
         onClose={() => setModal(null)} />
 
       <ModalExpense open={modal === "expense"} initial={editExpense} categories={categories} banks={banks}
-        onSave={handleSaveExpense} onClose={() => setModal(null)} isMobile={isMobile} />
+        onSave={handleSaveExpense}
+        onClose={() => { setModal(null); setExpenseFormErrors(null); }}
+        isMobile={isMobile}
+        apiErrors={expenseFormErrors}
+        isSaving={mutCreate.isPending || mutUpdate.isPending} />
 
       <ModalImportExpenses
         open={importOpen} familyId={familyId}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Child, Control, Vaccine, Visit, Exam, Attachment } from "@familyhub/types";
 import { useAuthStore } from "@/stores/auth.store";
@@ -7,6 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useWindowWidth } from "@/hooks/useWindowWidth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { HealthSidebarSkeleton, HealthContentSkeleton } from "@/components/ui/DashboardSkeletons";
 import {
   useChildren, useChildDetail,
@@ -20,6 +21,7 @@ import {
   type VisitInput, type ExamInput, type AttachmentInput,
 } from "@/hooks/useHealth";
 import { GrowthChart } from "./GrowthChart";
+import { parseApiError, type ValidationErrors } from "@/lib/apiErrors";
 import styles from "./HealthDashboard.module.css";
 
 /* ════════════════════════════════════
@@ -400,20 +402,31 @@ export default function HealthDashboard() {
   const createAttachment = useCreateAttachment(familyId, selectedChildId ?? undefined);
   const deleteAttachment = useDeleteAttachment(familyId, selectedChildId ?? undefined);
 
-  const [modal,  setModal]  = useState<ModalType>(null);
-  const [form,   setForm]   = useState<FormState>({});
-  const [editId, setEditId] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState(false);
+  const [modal,              setModal]              = useState<ModalType>(null);
+  const [formError,          setFormError]          = useState<ValidationErrors | null>(null);
+  const [saving,             setSaving]             = useState(false);
+  const [deleteChildTarget,  setDeleteChildTarget]  = useState<Child | null>(null);
+  const [form,               setForm]               = useState<FormState>({});
+  const [editId,             setEditId]             = useState<string | null>(null);
+  const [drawer,             setDrawer]             = useState(false);
+
+  const closeModal = useCallback(() => { setModal(null); setFormError(null); }, []);
+
+  function clientErr(msg: string): ValidationErrors {
+    return { message: msg, fieldErrors: {}, formErrors: [msg] };
+  }
 
   const ff = (k: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       setForm(p => ({ ...p, [k]: e.target.value }));
+      setFormError(null);
+    };
 
   function openAdd(type: Exclude<ModalType, null>) {
     const base: FormState = {};
     if (type === "control" || type === "visit") base.date = TODAY;
     if (type === "child") base.gender = "M";
-    setForm(base); setEditId(null); setModal(type);
+    setFormError(null); setForm(base); setEditId(null); setModal(type);
   }
   function openEdit(type: Exclude<ModalType, null>, item: Record<string, unknown>) {
     const m: FormState = {};
@@ -424,7 +437,7 @@ export default function HealthDashboard() {
       else if (typeof v === "number")        (m as Record<string, unknown>)[k] = String(v);
       else                                   (m as Record<string, unknown>)[k] = v;
     }
-    setForm(m); setEditId(item.id as string); setModal(type);
+    setFormError(null); setForm(m); setEditId(item.id as string); setModal(type);
   }
 
   const child       = detail?.child;
@@ -435,46 +448,66 @@ export default function HealthDashboard() {
   const attachments = detail?.attachments ?? [];
 
   async function saveControl() {
-    if (!form.date) return;
+    if (!form.date) { setFormError(clientErr("La fecha del control es obligatoria")); return; }
     const d: ControlInput = {
       date: dateToIso(form.date), doctor: form.doctor || null, center: form.center || null,
       weight: form.weight ? +form.weight : null, height: form.height ? +form.height : null,
       headCirc: form.headCirc ? +form.headCirc : null, notes: form.notes || null,
     };
-    try { if (editId) await updateControl.mutateAsync({ id:editId, data:d }); else await createControl.mutateAsync(d); setModal(null); }
-    catch { alert("Error al guardar el control"); }
+    setSaving(true);
+    try {
+      if (editId) await updateControl.mutateAsync({ id:editId, data:d }); else await createControl.mutateAsync(d);
+      closeModal();
+    } catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
   async function saveVaccine() {
-    if (!form.vaccineName || !form.date) return;
+    if (!form.vaccineName?.trim()) { setFormError(clientErr("El nombre de la vacuna es obligatorio")); return; }
+    if (!form.date) { setFormError(clientErr("La fecha es obligatoria")); return; }
     const d: VaccineInput = {
       date: dateToIso(form.date), name: form.vaccineName,
       dose: form.dose || null, batch: form.batch || null, notes: form.notes || null,
     };
-    try { if (editId) await updateVaccine.mutateAsync({ id:editId, data:d }); else await createVaccine.mutateAsync(d); setModal(null); }
-    catch { alert("Error al guardar la vacuna"); }
+    setSaving(true);
+    try {
+      if (editId) await updateVaccine.mutateAsync({ id:editId, data:d }); else await createVaccine.mutateAsync(d);
+      closeModal();
+    } catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
   async function saveVisit() {
-    if (!form.reason || !form.date) return;
+    if (!form.reason?.trim()) { setFormError(clientErr("El motivo de consulta es obligatorio")); return; }
+    if (!form.date) { setFormError(clientErr("La fecha es obligatoria")); return; }
     const d: VisitInput = {
       date: dateToIso(form.date), reason: form.reason, doctor: form.doctor || null,
       center: form.center || null, diagnosis: form.diagnosis || null,
       treatment: form.treatment || null, notes: form.notes || null,
     };
-    try { if (editId) await updateVisit.mutateAsync({ id:editId, data:d }); else await createVisit.mutateAsync(d); setModal(null); }
-    catch { alert("Error al guardar la visita"); }
+    setSaving(true);
+    try {
+      if (editId) await updateVisit.mutateAsync({ id:editId, data:d }); else await createVisit.mutateAsync(d);
+      closeModal();
+    } catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
   async function saveExam() {
-    if (!form.examType || !form.date) return;
+    if (!form.examType?.trim()) { setFormError(clientErr("El tipo de examen es obligatorio")); return; }
+    if (!form.date) { setFormError(clientErr("La fecha es obligatoria")); return; }
     const d: ExamInput = {
       date: dateToIso(form.date), type: form.examType,
       laboratory: form.laboratory || null, result: form.result || null,
       controlId: form.controlId || null, visitId: form.visitId || null,
     };
-    try { if (editId) await updateExam.mutateAsync({ id:editId, data:d }); else await createExam.mutateAsync(d); setModal(null); }
-    catch { alert("Error al guardar el examen"); }
+    setSaving(true);
+    try {
+      if (editId) await updateExam.mutateAsync({ id:editId, data:d }); else await createExam.mutateAsync(d);
+      closeModal();
+    } catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
   async function saveAttachment() {
-    if (!form.name || !form.date) return;
+    if (!form.name?.trim()) { setFormError(clientErr("El nombre o descripción es obligatorio")); return; }
+    if (!form.date) { setFormError(clientErr("La fecha del documento es obligatoria")); return; }
     const storageKey = `pending/${crypto.randomUUID()}`;
     const d: AttachmentInput = {
       name: form.name, type: (form.attachmentType || "other") as AttachmentInput["type"],
@@ -483,11 +516,13 @@ export default function HealthDashboard() {
       storageKey, notes: form.notes || null,
       controlId: form.controlId || null, visitId: form.visitId || null,
     };
-    try { await createAttachment.mutateAsync(d); setModal(null); }
-    catch { alert("Error al guardar el archivo"); }
+    setSaving(true);
+    try { await createAttachment.mutateAsync(d); closeModal(); }
+    catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
   async function saveChild() {
-    if (!form.name) return;
+    if (!form.name?.trim()) { setFormError(clientErr("El nombre del hijo/a es obligatorio")); return; }
     const d: ChildInput = {
       name: form.name, birthdate: form.birthdate ? dateToIso(form.birthdate) : null,
       gender: form.gender || null, birthplace: form.birthplace || null,
@@ -496,17 +531,17 @@ export default function HealthDashboard() {
       birthHeadCirc: form.birthHeadCirc ? +form.birthHeadCirc : null,
       bloodType: form.bloodType || null, notes: form.notes || null,
     };
+    setSaving(true);
     try {
       if (editId) await updateChild.mutateAsync(d);
       else { const r = await createChild.mutateAsync(d); if (r.data.child?.id) setSelectedChild(r.data.child.id); }
-      setModal(null);
-    } catch { alert("Error al guardar los datos del hijo/a"); }
+      closeModal();
+    } catch(err) { setFormError(parseApiError(err)); }
+    finally { setSaving(false); }
   }
-  async function handleDeleteChild(id: string) {
-    if (!confirm("¿Eliminar este hijo y todos sus registros?")) return;
-    await deleteChildM.mutateAsync(id);
-    const remaining = kids.filter(c => c.id !== id);
-    if (remaining.length > 0) setSelectedChild(remaining[0]!.id);
+  function handleDeleteChild(id: string) {
+    const target = kids.find(c => c.id === id);
+    if (target) setDeleteChildTarget(target);
   }
   function onChangeLinked(e: React.ChangeEvent<HTMLSelectElement>) {
     const [t, id] = e.target.value.split("|");
@@ -884,7 +919,8 @@ export default function HealthDashboard() {
       {/* ══ Modals ══ */}
 
       {modal === "control" && (
-        <SModal open title={editId ? "Editar control" : "Nuevo control"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title={editId ? "Editar control" : "Nuevo control"} onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div className="grid grid-cols-2 gap-3 mb-3.5">
             <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Fecha</label>
@@ -902,14 +938,15 @@ export default function HealthDashboard() {
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Observaciones</label><textarea style={{ ...IS, minHeight:65, resize:"vertical" }} placeholder="Notas..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveControl}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveControl} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
 
       {modal === "vaccine" && (
-        <SModal open title={editId ? "Editar vacuna" : "Registrar vacuna"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title={editId ? "Editar vacuna" : "Registrar vacuna"} onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div className="grid grid-cols-2 gap-3 mb-3.5">
             <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Vacuna</label><input style={IS} placeholder="Ej: Hexavalente" value={form.vaccineName || ""} onChange={ff("vaccineName")} /></div>
             <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Dosis</label><input style={IS} placeholder="Ej: 1ª" value={form.dose || ""} onChange={ff("dose")} /></div>
@@ -918,14 +955,15 @@ export default function HealthDashboard() {
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas</label><input style={IS} placeholder="Ej: sin reacciones" value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveVaccine}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveVaccine} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
 
       {modal === "exam" && (
-        <SModal open title={editId ? "Editar examen" : "Registrar examen"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title={editId ? "Editar examen" : "Registrar examen"} onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div style={{ marginBottom:14 }}>
             <label className={styles.formLabel}>Solicitado en</label>
             <select style={IS} value={`${form.controlId ? "control" : form.visitId ? "visit" : ""}|${form.controlId || form.visitId || ""}`} onChange={onChangeLinked}>
@@ -941,14 +979,15 @@ export default function HealthDashboard() {
             <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Resultado</label><input style={IS} placeholder="Ej: Normal" value={form.result || ""} onChange={ff("result")} /></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveExam}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveExam} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
 
       {modal === "visit" && (
-        <SModal open title={editId ? "Editar visita" : "Registrar visita"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title={editId ? "Editar visita" : "Registrar visita"} onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div className="grid grid-cols-2 gap-3 mb-3.5">
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Motivo de consulta</label><input style={IS} placeholder="Ej: Fiebre, revisión..." value={form.reason || ""} onChange={ff("reason")} /></div>
             <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
@@ -959,14 +998,15 @@ export default function HealthDashboard() {
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas</label><textarea style={{ ...IS, minHeight:50, resize:"vertical" }} placeholder="Observaciones adicionales..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveVisit}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveVisit} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
 
       {modal === "attachment" && (
-        <SModal open title="Adjuntar archivo" onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title="Adjuntar archivo" onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div style={{ marginBottom:14 }}>
             <label className={styles.formLabel}>Asociado a</label>
             <select style={IS} value={`${form.controlId ? "control" : form.visitId ? "visit" : ""}|${form.controlId || form.visitId || ""}`} onChange={onChangeLinked}>
@@ -997,14 +1037,15 @@ export default function HealthDashboard() {
             ℹ️ El almacenamiento de archivos requiere configuración de S3. Por ahora se registra el metadato.
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveAttachment}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveAttachment} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
 
       {modal === "child" && (
-        <SModal open title={editId ? "Editar hijo/a" : "Agregar hijo/a"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
+        <SModal open title={editId ? "Editar hijo/a" : "Agregar hijo/a"} onClose={closeModal} bottomSheet={!isDesktop}>
+          {formError && <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-text)]/20"><p className="text-[var(--danger-text)] text-sm font-semibold">{formError.message}</p></div>}
           <div className="grid grid-cols-2 gap-3 mb-3.5">
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Nombre completo</label><input style={IS} placeholder="Nombre" value={form.name || ""} onChange={ff("name")} /></div>
             <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha de nacimiento</label><input style={IS} type="date" value={form.birthdate || ""} onChange={ff("birthdate")} /></div>
@@ -1029,11 +1070,25 @@ export default function HealthDashboard() {
             <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas (alergias, condiciones...)</label><textarea style={{ ...IS, minHeight:60, resize:"vertical" }} placeholder="Ej: Alérgico a penicilina..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
-            <button className={styles.btnSave}   onClick={saveChild}>Guardar</button>
+            <button className={styles.btnCancel} onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className={styles.btnSave}   onClick={saveChild} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
           </div>
         </SModal>
       )}
+      <ConfirmDialog
+        open={!!deleteChildTarget}
+        title={`¿Eliminar a "${deleteChildTarget?.name ?? ""}"?`}
+        description="Se eliminarán todos sus controles, vacunas, visitas, exámenes y archivos. Esta acción no se puede deshacer."
+        onClose={() => setDeleteChildTarget(null)}
+        onConfirm={async () => {
+          if (deleteChildTarget) {
+            await deleteChildM.mutateAsync(deleteChildTarget.id);
+            const remaining = kids.filter(c => c.id !== deleteChildTarget.id);
+            if (remaining.length > 0) setSelectedChild(remaining[0]!.id);
+            setDeleteChildTarget(null);
+          }
+        }}
+      />
     </DashboardLayout>
   );
 }
