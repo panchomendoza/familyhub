@@ -269,12 +269,6 @@ const LBL: React.CSSProperties = {
   fontSize: 11, fontWeight: 700, color: V.textMuted,
   letterSpacing: "0.04em", display: "block", marginBottom: 5,
 };
-const GRID2: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14,
-};
-const GRID3: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14,
-};
 
 /* ════════════════════════════════════
    VehicleForm
@@ -335,7 +329,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
       </div>
 
       {/* Marca / Modelo / Año */}
-      <div style={GRID3}>
+      <div className="grid grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>MARCA *</label>
           <input style={INP} value={f.brand} onChange={e => set("brand", e.target.value)} placeholder="Toyota" />
@@ -351,7 +345,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
       </div>
 
       {/* Patente / VIN / Color */}
-      <div style={GRID3}>
+      <div className="grid grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>PATENTE *</label>
           <input style={INP} value={f.licensePlate} onChange={e => set("licensePlate", e.target.value.toUpperCase())} placeholder="BBCD-12" />
@@ -367,7 +361,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
       </div>
 
       {/* Motor / Combustible / Transmisión */}
-      <div style={GRID3}>
+      <div className="grid grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>CILINDRADA (CC)</label>
           <input style={INP} type="number" value={f.engineCC} onChange={e => set("engineCC", e.target.value)} placeholder="1800" min={0} />
@@ -390,7 +384,7 @@ function VehicleForm({ initial, isEdit, onSave, onClose }: {
       </div>
 
       {/* Puertas / Odómetro */}
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>N° PUERTAS</label>
           <input style={INP} type="number" value={f.doors} onChange={e => set("doors", e.target.value)} min={0} max={6} />
@@ -452,7 +446,7 @@ function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
         {VEHICLE_ICONS[vehicle.type]} {vehicle.brand} {vehicle.model} — {vehicle.licensePlate}
       </p>
 
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>FECHA</label>
           <input type="date" style={INP} value={f.date} onChange={e => set("date", e.target.value)} />
@@ -471,7 +465,7 @@ function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
           onChange={e => set("description", e.target.value)} placeholder="Detalles de la mantención..." />
       </div>
 
-      <div style={GRID3}>
+      <div className="grid grid-cols-3 gap-3 mb-3.5">
         <div>
           <label style={LBL}>ODÓMETRO (KM)</label>
           <input type="number" style={INP} value={f.odometer}
@@ -489,7 +483,7 @@ function MaintenanceForm({ initial, vehicle, onSave, onClose }: {
         </div>
       </div>
 
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>PRÓXIMA MANTENCIÓN (KM)</label>
           <input type="number" style={INP} value={f.nextKm}
@@ -587,7 +581,7 @@ function DocumentForm({ initial, vehicle, onSave, onClose }: {
         </select>
       </div>
 
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>FECHA EMISIÓN</label>
           <input type="date" style={INP} value={f.issueDate} onChange={e => set("issueDate", e.target.value)} />
@@ -598,7 +592,7 @@ function DocumentForm({ initial, vehicle, onSave, onClose }: {
         </div>
       </div>
 
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>MONTO ($)</label>
           <input type="number" style={INP} value={f.amount}
@@ -711,7 +705,7 @@ function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit }: {
         {VEHICLE_ICONS[vehicle.type]} {vehicle.brand} {vehicle.model} — {vehicle.licensePlate}
       </p>
 
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>FECHA</label>
           <input type="date" style={INP} value={f.date} onChange={e => set("date", e.target.value)} />
@@ -730,7 +724,7 @@ function ExpenseForm({ initial, vehicle, onSave, onClose, isEdit }: {
           onChange={e => set("description", e.target.value)} placeholder="Detalle del gasto..." />
       </div>
 
-      <div style={{ ...GRID2, ...(isFuel ? GRID3 : {}) }}>
+      <div className={isFuel ? "grid grid-cols-3 gap-3 mb-3.5" : "grid grid-cols-2 gap-3 mb-3.5"}>
         <div>
           <label style={LBL}>MONTO ($) *</label>
           <input type="number" style={INP} value={f.amount}
@@ -796,7 +790,7 @@ function SellVehicleForm({ vehicle, onConfirm, onClose }: {
       <p style={{ fontSize: 13, color: V.textMuted, marginBottom: 20, lineHeight: 1.6 }}>
         Una vez marcado como vendido, el vehículo quedará en modo solo lectura y no podrá ser editado.
       </p>
-      <div style={GRID2}>
+      <div className="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label style={LBL}>FECHA DE VENTA</label>
           <input type="date" style={INP} value={date} onChange={e => setDate(e.target.value)} />

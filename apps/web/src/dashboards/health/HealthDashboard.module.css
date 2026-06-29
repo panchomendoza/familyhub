@@ -400,32 +400,12 @@
 }
 
 /* ── Form modals ── */
-.formField {
-  margin-bottom: 14px;
-}
-
 .formLabel {
   display:       block;
   font-size:     12px;
   font-weight:   600;
   color:         var(--text-muted);
   margin-bottom: 4px;
-}
-
-.formGrid2 {
-  display:               grid;
-  grid-template-columns: 1fr 1fr;
-  gap:                   0 16px;
-}
-
-@media (max-width: 480px) {
-  .formGrid2 {
-    grid-template-columns: 1fr;
-  }
-
-  .formGrid2 > * {
-    grid-column: span 1 !important;
-  }
 }
 
 .modalActions {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth.store";
@@ -279,7 +280,7 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
   }
 
   return (
-    <Modal open={open} onClose={onClose} bottomSheet={isMobile} maxWidth={520}>
+    <Modal open={open} onClose={onClose} maxWidth={520}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
         <span style={{ fontWeight:700, fontSize:16 }} className="fh-text">{initial ? "Editar producto" : "Agregar producto"}</span>
         <button onClick={onClose} className="fh-btn-ghost" style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, padding:0 }} >✕</button>
@@ -828,9 +829,10 @@ export default function StockDashboard() {
         )}
       </div>
 
-      {/* FAB mobile */}
-      {!isDesktop && !isLoading && categories.length > 0 && (
-        <button className={styles.mobileAdd} onClick={() => openAdd()}>+</button>
+      {/* FAB mobile — portal al body para evitar que overflow-y:auto del padre rompa position:fixed */}
+      {!isDesktop && !isLoading && categories.length > 0 && createPortal(
+        <button className={styles.mobileAdd} onClick={() => openAdd()}>+</button>,
+        document.body
       )}
 
       {/* Scanner */}

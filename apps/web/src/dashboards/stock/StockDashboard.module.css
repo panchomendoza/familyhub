@@ -626,27 +626,6 @@
   color:     var(--text-muted);
 }
 
-/* ── Product modal: form ── */
-.formGrid {
-  display:               grid;
-  grid-template-columns: 1fr 1fr;
-  gap:                   12px;
-  margin-bottom:         12px;
-}
-
-.formField {
-  display:        flex;
-  flex-direction: column;
-  gap:            4px;
-  margin-bottom:  12px;
-}
-
-.formLabel {
-  font-size:   12px;
-  font-weight: 600;
-  color:       var(--text-muted);
-}
-
 .formActions {
   display:         flex;
   gap:             8px;

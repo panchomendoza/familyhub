@@ -885,21 +885,21 @@ export default function HealthDashboard() {
 
       {modal === "control" && (
         <SModal open title={editId ? "Editar control" : "Nuevo control"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
-          <div className={styles.formGrid2}>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
+            <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Fecha</label>
               <input style={IS} type="date" value={form.date || ""} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
             </div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}>
+            <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Edad</label>
               <input style={{ ...IS, background: form.date && child?.birthdate ? (isDark ? "#1e2d4a" : "#EEF3FF") : IS.background }} readOnly value={form.date && child ? calcAgeAt(child.birthdate, form.date) : ""} placeholder="Auto-calculada" />
             </div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Médico</label><input style={IS} placeholder="Dr. Apellido" value={form.doctor || ""} onChange={ff("doctor")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Centro</label><input style={IS} placeholder="CESFAM, Clínica..." value={form.center || ""} onChange={ff("center")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Peso (kg)</label><input style={IS} type="number" step="0.1" min="0" placeholder="Ej: 10.5" value={form.weight || ""} onChange={ff("weight")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Talla (cm)</label><input style={IS} type="number" min="0" placeholder="Ej: 75" value={form.height || ""} onChange={ff("height")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>P. cefálico (cm)</label><input style={IS} type="number" step="0.1" min="0" placeholder="Ej: 44" value={form.headCirc || ""} onChange={ff("headCirc")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Observaciones</label><textarea style={{ ...IS, minHeight:65, resize:"vertical" }} placeholder="Notas..." value={form.notes || ""} onChange={ff("notes")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Médico</label><input style={IS} placeholder="Dr. Apellido" value={form.doctor || ""} onChange={ff("doctor")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Centro</label><input style={IS} placeholder="CESFAM, Clínica..." value={form.center || ""} onChange={ff("center")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Peso (kg)</label><input style={IS} type="number" step="0.1" min="0" placeholder="Ej: 10.5" value={form.weight || ""} onChange={ff("weight")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Talla (cm)</label><input style={IS} type="number" min="0" placeholder="Ej: 75" value={form.height || ""} onChange={ff("height")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>P. cefálico (cm)</label><input style={IS} type="number" step="0.1" min="0" placeholder="Ej: 44" value={form.headCirc || ""} onChange={ff("headCirc")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Observaciones</label><textarea style={{ ...IS, minHeight:65, resize:"vertical" }} placeholder="Notas..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
             <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
@@ -910,12 +910,12 @@ export default function HealthDashboard() {
 
       {modal === "vaccine" && (
         <SModal open title={editId ? "Editar vacuna" : "Registrar vacuna"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
-          <div className={styles.formGrid2}>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Vacuna</label><input style={IS} placeholder="Ej: Hexavalente" value={form.vaccineName || ""} onChange={ff("vaccineName")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Dosis</label><input style={IS} placeholder="Ej: 1ª" value={form.dose || ""} onChange={ff("dose")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Lote</label><input style={IS} placeholder="Nº de lote" value={form.batch || ""} onChange={ff("batch")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Notas</label><input style={IS} placeholder="Ej: sin reacciones" value={form.notes || ""} onChange={ff("notes")} /></div>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Vacuna</label><input style={IS} placeholder="Ej: Hexavalente" value={form.vaccineName || ""} onChange={ff("vaccineName")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Dosis</label><input style={IS} placeholder="Ej: 1ª" value={form.dose || ""} onChange={ff("dose")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Lote</label><input style={IS} placeholder="Nº de lote" value={form.batch || ""} onChange={ff("batch")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas</label><input style={IS} placeholder="Ej: sin reacciones" value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
             <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
@@ -934,11 +934,11 @@ export default function HealthDashboard() {
               <optgroup label="Visitas">{visits.map(v => <option key={v.id} value={`visit|${v.id}`}>Visita {fmtDate(v.date)} — {v.reason}</option>)}</optgroup>
             </select>
           </div>
-          <div className={styles.formGrid2}>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Tipo</label><input style={IS} placeholder="Ej: Hemograma" value={form.examType || ""} onChange={ff("examType")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Laboratorio</label><input style={IS} placeholder="Nombre del lab" value={form.laboratory || ""} onChange={ff("laboratory")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Resultado</label><input style={IS} placeholder="Ej: Normal" value={form.result || ""} onChange={ff("result")} /></div>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Tipo</label><input style={IS} placeholder="Ej: Hemograma" value={form.examType || ""} onChange={ff("examType")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Laboratorio</label><input style={IS} placeholder="Nombre del lab" value={form.laboratory || ""} onChange={ff("laboratory")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Resultado</label><input style={IS} placeholder="Ej: Normal" value={form.result || ""} onChange={ff("result")} /></div>
           </div>
           <div className={styles.modalActions}>
             <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
@@ -949,14 +949,14 @@ export default function HealthDashboard() {
 
       {modal === "visit" && (
         <SModal open title={editId ? "Editar visita" : "Registrar visita"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
-          <div className={styles.formGrid2}>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Motivo de consulta</label><input style={IS} placeholder="Ej: Fiebre, revisión..." value={form.reason || ""} onChange={ff("reason")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Médico</label><input style={IS} placeholder="Dr. Apellido" value={form.doctor || ""} onChange={ff("doctor")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Centro</label><input style={IS} placeholder="Centro de salud" value={form.center || ""} onChange={ff("center")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Diagnóstico</label><textarea style={{ ...IS, minHeight:55, resize:"vertical" }} placeholder="Diagnóstico médico..." value={form.diagnosis || ""} onChange={ff("diagnosis")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Tratamiento</label><textarea style={{ ...IS, minHeight:55, resize:"vertical" }} placeholder="Medicamentos, indicaciones..." value={form.treatment || ""} onChange={ff("treatment")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Notas</label><textarea style={{ ...IS, minHeight:50, resize:"vertical" }} placeholder="Observaciones adicionales..." value={form.notes || ""} onChange={ff("notes")} /></div>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Motivo de consulta</label><input style={IS} placeholder="Ej: Fiebre, revisión..." value={form.reason || ""} onChange={ff("reason")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha</label><input style={IS} type="date" value={form.date || ""} onChange={ff("date")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Médico</label><input style={IS} placeholder="Dr. Apellido" value={form.doctor || ""} onChange={ff("doctor")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Centro</label><input style={IS} placeholder="Centro de salud" value={form.center || ""} onChange={ff("center")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Diagnóstico</label><textarea style={{ ...IS, minHeight:55, resize:"vertical" }} placeholder="Diagnóstico médico..." value={form.diagnosis || ""} onChange={ff("diagnosis")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Tratamiento</label><textarea style={{ ...IS, minHeight:55, resize:"vertical" }} placeholder="Medicamentos, indicaciones..." value={form.treatment || ""} onChange={ff("treatment")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas</label><textarea style={{ ...IS, minHeight:50, resize:"vertical" }} placeholder="Observaciones adicionales..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
             <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
@@ -975,7 +975,7 @@ export default function HealthDashboard() {
               <optgroup label="Visitas">{visits.map(v => <option key={v.id} value={`visit|${v.id}`}>Visita {fmtDate(v.date)} — {v.reason}</option>)}</optgroup>
             </select>
           </div>
-          <div className={styles.formGrid2}>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
             <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Tipo de documento</label>
               <select style={IS} value={form.attachmentType || "other"} onChange={ff("attachmentType")}>
@@ -1005,28 +1005,28 @@ export default function HealthDashboard() {
 
       {modal === "child" && (
         <SModal open title={editId ? "Editar hijo/a" : "Agregar hijo/a"} onClose={() => setModal(null)} bottomSheet={!isDesktop}>
-          <div className={styles.formGrid2}>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Nombre completo</label><input style={IS} placeholder="Nombre" value={form.name || ""} onChange={ff("name")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Fecha de nacimiento</label><input style={IS} type="date" value={form.birthdate || ""} onChange={ff("birthdate")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}>
+          <div className="grid grid-cols-2 gap-3 mb-3.5">
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Nombre completo</label><input style={IS} placeholder="Nombre" value={form.name || ""} onChange={ff("name")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Fecha de nacimiento</label><input style={IS} type="date" value={form.birthdate || ""} onChange={ff("birthdate")} /></div>
+            <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Sexo</label>
               <select style={IS} value={form.gender || "M"} onChange={ff("gender")}>
                 <option value="M">Niño</option>
                 <option value="F">Niña</option>
               </select>
             </div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Lugar de nacimiento</label><input style={IS} placeholder="Ej: Santiago" value={form.birthplace || ""} onChange={ff("birthplace")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Peso al nacer (kg)</label><input style={IS} type="number" step="0.1" placeholder="Ej: 3.2" value={form.birthWeight || ""} onChange={ff("birthWeight")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>Talla al nacer (cm)</label><input style={IS} type="number" placeholder="Ej: 49" value={form.birthHeight || ""} onChange={ff("birthHeight")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}><label className={styles.formLabel}>P. cefálico al nacer (cm)</label><input style={IS} type="number" step="0.1" placeholder="Ej: 34" value={form.birthHeadCirc || ""} onChange={ff("birthHeadCirc")} /></div>
-            <div style={{ marginBottom:14, gridColumn:"span 1" }}>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Lugar de nacimiento</label><input style={IS} placeholder="Ej: Santiago" value={form.birthplace || ""} onChange={ff("birthplace")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Peso al nacer (kg)</label><input style={IS} type="number" step="0.1" placeholder="Ej: 3.2" value={form.birthWeight || ""} onChange={ff("birthWeight")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>Talla al nacer (cm)</label><input style={IS} type="number" placeholder="Ej: 49" value={form.birthHeight || ""} onChange={ff("birthHeight")} /></div>
+            <div style={{ marginBottom:14 }}><label className={styles.formLabel}>P. cefálico al nacer (cm)</label><input style={IS} type="number" step="0.1" placeholder="Ej: 34" value={form.birthHeadCirc || ""} onChange={ff("birthHeadCirc")} /></div>
+            <div style={{ marginBottom:14 }}>
               <label className={styles.formLabel}>Grupo sanguíneo</label>
               <select style={IS} value={form.bloodType || ""} onChange={ff("bloodType")}>
                 <option value="">— No sé —</option>
                 {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div style={{ marginBottom:14, gridColumn:"span 2" }}><label className={styles.formLabel}>Notas (alergias, condiciones...)</label><textarea style={{ ...IS, minHeight:60, resize:"vertical" }} placeholder="Ej: Alérgico a penicilina..." value={form.notes || ""} onChange={ff("notes")} /></div>
+            <div style={{ marginBottom:14 }} className="col-span-full"><label className={styles.formLabel}>Notas (alergias, condiciones...)</label><textarea style={{ ...IS, minHeight:60, resize:"vertical" }} placeholder="Ej: Alérgico a penicilina..." value={form.notes || ""} onChange={ff("notes")} /></div>
           </div>
           <div className={styles.modalActions}>
             <button className={styles.btnCancel} onClick={() => setModal(null)}>Cancelar</button>
