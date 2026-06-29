@@ -215,6 +215,7 @@ export default function HomePage() {
                 </button>
                 {showUserMenu && (
                   <UserDropdown user={user} isAdmin={isAdmin}
+                    onProfile={() => { setShowUserMenu(false); navigate("/profile"); }}
                     onInvite={() => { setShowUserMenu(false); setShowInvite(true); }}
                     onLogout={handleLogout}
                     onClose={() => setShowUserMenu(false)} />
@@ -460,10 +461,10 @@ function FamilyDropdown({ families, current, onSelect, onAdd, onClose }: {
   );
 }
 
-function UserDropdown({ user, isAdmin, onInvite, onLogout, onClose }: {
+function UserDropdown({ user, isAdmin, onProfile, onInvite, onLogout, onClose }: {
   user: { name: string; email: string };
   isAdmin: boolean;
-  onInvite: () => void; onLogout: () => void; onClose: () => void;
+  onProfile: () => void; onInvite: () => void; onLogout: () => void; onClose: () => void;
 }) {
   void onClose;
   return (
@@ -472,6 +473,9 @@ function UserDropdown({ user, isAdmin, onInvite, onLogout, onClose }: {
         <div style={{ fontSize: 13, fontWeight: 700, color: V.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
         <div style={{ fontSize: 11, color: V.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
       </div>
+      <button onClick={onProfile} style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: V.text, display: "flex", alignItems: "center", gap: 8 }}>
+        👤 Mi perfil
+      </button>
       {isAdmin && (
         <button onClick={onInvite} style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: V.text, display: "flex", alignItems: "center", gap: 8 }}>
           🔗 Invitar miembro

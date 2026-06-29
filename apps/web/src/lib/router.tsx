@@ -73,6 +73,7 @@ const HealthDashboard    = lazy(() => import("@/dashboards/health/HealthDashboar
 const StockDashboard     = lazy(() => import("@/dashboards/stock/StockDashboard"));
 const ExpensesDashboard  = lazy(() => import("@/dashboards/expenses/ExpensesDashboard"));
 const VehiclesDashboard  = lazy(() => import("@/dashboards/vehicles/VehiclesDashboard"));
+const ProfilePage        = lazy(() => import("@/pages/ProfilePage"));
 
 const ROUTE_TITLES: Record<string, string> = {
   "/home":             "Inicio — FamilyHub",
@@ -176,6 +177,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/onboarding", element: <Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense> },
           { path: "/home",       element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense> },
+          { path: "/profile",    element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },
 
           // Dashboards — cada uno aislado con su propio ErrorBoundary
           {

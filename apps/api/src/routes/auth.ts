@@ -423,7 +423,7 @@ authRoutes.get("/me", requireAuth, async (c) => {
   const [user, familiesFormatted] = await Promise.all([
     db.user.findUnique({
       where:  { id: userId },
-      select: { id: true, name: true, email: true, avatarUrl: true },
+      select: { id: true, name: true, email: true, avatarUrl: true, provider: true },
     }),
     getFamiliesForUser(userId),
   ]);
@@ -481,6 +481,74 @@ authRoutes.post("/logout", async (c) => {
   }
 
   clearAuthCookies(c);
+  return c.json({ ok: true });
+});
+
+// ══════════════════════════════════════════
+//   PATCH /auth/profile
+//   Actualiza el nombre del usuario autenticado
+// ══════════════════════════════════════════
+authRoutes.patch("/profile", requireAuth, requireCsrf, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const body   = await c.req.json().catch(() => ({}));
+
+  const schema = z.object({
+    name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(80).trim(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Datos inválidos", fieldErrors: parsed.error.flatten().fieldErrors }, 422);
+  }
+
+  const user = await db.user.update({
+    where: { id: userId },
+    data:  { name: parsed.data.name },
+    select: { id: true, name: true, email: true, avatarUrl: true, provider: true, createdAt: true },
+  });
+
+  return c.json({ user });
+});
+
+// ══════════════════════════════════════════
+//   PATCH /auth/password
+//   Cambia la contraseña del usuario (solo provider="email")
+// ══════════════════════════════════════════
+authRoutes.patch("/password", requireAuth, requireCsrf, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const body   = await c.req.json().catch(() => ({}));
+
+  const schema = z.object({
+    currentPassword: z.string().min(1, "Ingresa tu contraseña actual"),
+    newPassword:     z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
+    confirmPassword: z.string().min(1),
+  }).refine(d => d.newPassword === d.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Datos inválidos", fieldErrors: parsed.error.flatten().fieldErrors }, 422);
+  }
+
+  const user = await db.user.findUnique({
+    where:  { id: userId },
+    select: { password: true, provider: true },
+  });
+
+  if (!user || user.provider !== "email" || !user.password) {
+    return c.json({ error: "No podés cambiar la contraseña de una cuenta Google" }, 400);
+  }
+
+  const isValid = await bcrypt.compare(parsed.data.currentPassword, user.password);
+  if (!isValid) {
+    return c.json({ error: "La contraseña actual es incorrecta", fieldErrors: { currentPassword: ["La contraseña actual es incorrecta"] } }, 422);
+  }
+
+  const BCRYPT_ROUNDS = 12;
+  const hashed = await bcrypt.hash(parsed.data.newPassword, BCRYPT_ROUNDS);
+  await db.user.update({ where: { id: userId }, data: { password: hashed } });
+
   return c.json({ ok: true });
 });
 
