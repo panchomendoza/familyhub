@@ -82,20 +82,25 @@ function ScannerModal({ mode, onClose, onScanned }: {
   const modeColor = mode === "add" ? "#34C78A" : "#F7874F";
   const modeLabel = mode === "add" ? "Agregar al stock" : "Consumir producto";
 
-  function stopScanner() {
-    if (html5Ref.current) { html5Ref.current.stop().catch(() => {}); html5Ref.current = null; }
+  async function stopScanner() {
+    if (html5Ref.current) {
+      try { await html5Ref.current.stop(); } catch { /* noop */ }
+      html5Ref.current = null;
+    }
   }
-  function startScanner(camId: string) {
+  async function startScanner(camId: string) {
     if (!scannerRef.current || !window.Html5Qrcode) return;
-    stopScanner();
+    await stopScanner();
     const scanner = new window.Html5Qrcode("qr-reader");
     html5Ref.current = scanner;
-    scanner.start(
-      camId || { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 240, height: 120 } },
-      (code) => { setLastCode(code); setStatus("found"); stopScanner(); },
-      () => {}
-    ).catch(() => setStatus("error"));
+    try {
+      await scanner.start(
+        camId || { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 240, height: 120 } },
+        (code: string) => { setLastCode(code); setStatus("found"); void stopScanner(); },
+        () => {}
+      );
+    } catch { setStatus("error"); }
   }
 
   useEffect(() => {
@@ -106,21 +111,15 @@ function ScannerModal({ mode, onClose, onScanned }: {
         if (!mounted || !cams.length) { setStatus("error"); return; }
         setCamList(cams);
         const idx = cams.findIndex(c => /back|rear|environment/i.test(c.label));
+        const camId = cams[idx >= 0 ? idx : 0]?.id ?? "";
         setCamIdx(idx >= 0 ? idx : 0);
         setStatus("ready");
+        if (camId) void startScanner(camId);
       })
       .catch(() => { if (mounted) setStatus("error"); });
-    return () => { mounted = false; stopScanner(); };
+    return () => { mounted = false; void stopScanner(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (status === "ready" && camList.length) {
-      const cam = camList[camIdx];
-      if (cam) startScanner(cam.id);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, camIdx]);
 
   /* Scanner permanece con inline styles: es una pantalla fullscreen con fondo oscuro
      fijo (#000D), independiente del tema. */
@@ -135,7 +134,7 @@ function ScannerModal({ mode, onClose, onScanned }: {
         </div>
         <div style={{ display:"flex", gap:8 }}>
           {camList.length > 1 && (
-            <button onClick={() => { const next=(camIdx+1)%camList.length; setCamIdx(next); stopScanner(); const cam=camList[next]; if(cam) startScanner(cam.id); }} style={{ background:"#ffffff22", border:"none", borderRadius:8, padding:"6px 10px", cursor:"pointer", color:"#fff", fontSize:16 }}>🔄</button>
+            <button onClick={async () => { const next=(camIdx+1)%camList.length; setCamIdx(next); const cam=camList[next]; if(cam) await startScanner(cam.id); }} style={{ background:"#ffffff22", border:"none", borderRadius:8, padding:"6px 10px", cursor:"pointer", color:"#fff", fontSize:16 }}>🔄</button>
           )}
           <button onClick={() => { stopScanner(); onClose(); }} style={{ background:"#ffffff22", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", color:"#fff", fontWeight:700, fontSize:14, fontFamily:"inherit" }}>✕</button>
         </div>
