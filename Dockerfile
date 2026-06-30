@@ -29,4 +29,4 @@ ENV PORT=4000
 
 EXPOSE 4000
 
-CMD ["pnpm", "--filter", "@familyhub/api", "dev:start"]
+CMD ["sh", "-c", "pnpm --filter @familyhub/api exec prisma db push && pnpm --filter @familyhub/api dev:start"]
