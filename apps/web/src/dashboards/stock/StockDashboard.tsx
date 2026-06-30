@@ -72,8 +72,9 @@ async function fetchProductInfo(barcode: string) {
 function ScannerModal({ mode, onClose, onScanned }: {
   mode: "add" | "consume"; onClose: () => void; onScanned: (code: string) => void;
 }) {
-  const scannerRef = useRef<HTMLDivElement>(null);
-  const html5Ref   = useRef<{ stop(): Promise<void> } | null>(null);
+  const scannerRef  = useRef<HTMLDivElement>(null);
+  const html5Ref    = useRef<{ stop(): Promise<void> } | null>(null);
+  const activeCamId = useRef<string>("");
   const [status, setStatus]     = useState<"init"|"ready"|"found"|"error">("init");
   const [lastCode, setLastCode] = useState<string | null>(null);
   const [camList, setCamList]   = useState<Array<{ id: string; label: string }>>([]);
@@ -91,13 +92,21 @@ function ScannerModal({ mode, onClose, onScanned }: {
   async function startScanner(camId: string) {
     if (!scannerRef.current || !window.Html5Qrcode) return;
     await stopScanner();
-    const scanner = new window.Html5Qrcode("qr-reader");
+    // Limpiar DOM residual que deja Html5Qrcode al detenerse
+    scannerRef.current.innerHTML = "";
+    activeCamId.current = camId;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scanner = new (window.Html5Qrcode as any)("qr-reader", { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
     html5Ref.current = scanner;
     try {
       await scanner.start(
         camId || { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 120 } },
-        (code: string) => { setLastCode(code); setStatus("found"); void stopScanner(); },
+        { fps: 25, qrbox: { width: 280, height: 160 } },
+        (code: string) => {
+          // Ignorar lecturas demasiado cortas (ruido o códigos parciales)
+          if (code.length < 6) return;
+          setLastCode(code); setStatus("found"); void stopScanner();
+        },
         () => {}
       );
     } catch { setStatus("error"); }
@@ -165,7 +174,7 @@ function ScannerModal({ mode, onClose, onScanned }: {
             <div style={{ fontWeight:800, fontSize:18, color:"#fff", marginBottom:4 }}>¡Código leído!</div>
             <div style={{ fontFamily:"monospace", fontSize:16, color:modeColor, marginBottom:20, letterSpacing:2 }}>{lastCode}</div>
             <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-              <button onClick={() => { setLastCode(null); setStatus("ready"); }} style={{ background:"#ffffff18", border:"none", borderRadius:8, padding:"9px 18px", color:"#fff", cursor:"pointer", fontFamily:"inherit", fontWeight:600, fontSize:14 }}>Escanear otro</button>
+              <button onClick={() => { setLastCode(null); setStatus("ready"); void startScanner(activeCamId.current); }} style={{ background:"#ffffff18", border:"none", borderRadius:8, padding:"9px 18px", color:"#fff", cursor:"pointer", fontFamily:"inherit", fontWeight:600, fontSize:14 }}>Escanear otro</button>
               <button onClick={() => { if(lastCode) onScanned(lastCode); onClose(); }} style={{ background:modeColor, border:"none", borderRadius:8, padding:"9px 18px", color:"#fff", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:14 }}>
                 {mode==="add"?"Agregar →":"Descontar →"}
               </button>
@@ -250,8 +259,8 @@ const EMPTY_FORM: ItemForm = {
   unit:"unidades", location:"Despensa", notes:"", barcode:"",
 };
 
-function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanner, isMobile, apiErrors, isSaving }: {
-  open: boolean; initial: StockItem | null; categories: StockCategory[];
+function ModalProduct({ open, initial, initialBarcode, categories, onSave, onClose, onOpenScanner, isMobile, apiErrors, isSaving }: {
+  open: boolean; initial: StockItem | null; initialBarcode?: string | null; categories: StockCategory[];
   onSave: (d: ItemInput) => void; onClose: () => void;
   onOpenScanner: () => void; isMobile: boolean;
   apiErrors?: ValidationErrors | null;
@@ -268,7 +277,7 @@ function ModalProduct({ open, initial, categories, onSave, onClose, onOpenScanne
       quantity: String(initial.quantity), minimum: String(initial.minimum),
       unit: initial.unit, location: initial.location ?? "Despensa",
       notes: initial.notes ?? "", barcode: initial.barcode ?? "",
-    } : { ...EMPTY_FORM, categoryId: categories[0]?.id ?? "" });
+    } : { ...EMPTY_FORM, categoryId: categories[0]?.id ?? "", barcode: initialBarcode ?? "" });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -961,7 +970,7 @@ export default function StockDashboard() {
       )}
 
       <ModalProduct
-        open={productModal} initial={editItem} categories={categories}
+        open={productModal} initial={editItem} initialBarcode={pendingBarcode} categories={categories}
         onSave={handleSaveItem}
         onClose={() => { setProductModal(false); setPendingBarcode(null); setItemFormErrors(null); }}
         onOpenScanner={() => setScanner("add")}
