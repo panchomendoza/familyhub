@@ -68,6 +68,16 @@ const DASHBOARDS: DashboardDef[] = ([
     enabled:     features.dashboards.vehicles,
   },
   {
+    id:          "medicines",
+    path:        "/medicines",
+    emoji:       "💊",
+    title:       "Medicinas",
+    description: "Registro de medicamentos del hogar, dosis y stock de remedios",
+    color:       "#E5534B",
+    comingSoon:  false,
+    enabled:     features.dashboards.medicines,
+  },
+  {
     id:          "tasks",
     path:        "/tasks",
     emoji:       "✅",

@@ -35,7 +35,7 @@ export interface RegisterInput {
 //   FAMILIAS
 // ══════════════════════════════════════════
 
-export type DashboardId = "health" | "stock" | "expenses" | "tasks" | "vehicles";
+export type DashboardId = "health" | "stock" | "expenses" | "tasks" | "vehicles" | "medicines";
 
 export interface FamilyMember {
   id:              string;   // id del registro FamilyMember (para PATCH/DELETE)

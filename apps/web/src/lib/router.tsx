@@ -73,6 +73,7 @@ const HealthDashboard    = lazy(() => import("@/dashboards/health/HealthDashboar
 const StockDashboard     = lazy(() => import("@/dashboards/stock/StockDashboard"));
 const ExpensesDashboard  = lazy(() => import("@/dashboards/expenses/ExpensesDashboard"));
 const VehiclesDashboard  = lazy(() => import("@/dashboards/vehicles/VehiclesDashboard"));
+const MedicinesDashboard = lazy(() => import("@/dashboards/medicines/MedicinesDashboard"));
 const ProfilePage        = lazy(() => import("@/pages/ProfilePage"));
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -85,6 +86,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/gastos":           "Gastos — FamilyHub",
   "/vehicles":         "Vehículos — FamilyHub",
   "/autos":            "Vehículos — FamilyHub",
+  "/medicines":        "Medicinas — FamilyHub",
   "/login":            "Iniciar sesión — FamilyHub",
   "/register":         "Crear cuenta — FamilyHub",
   "/verify":           "Verificar email — FamilyHub",
@@ -205,6 +207,12 @@ const router = createBrowserRouter([
             children: [
               { path: "/vehicles/*", element: features.dashboards.vehicles ? dash(<VehiclesDashboard />, "Vehículos") : <Navigate to="/home" replace /> },
               { path: "/autos/*",    element: features.dashboards.vehicles ? dash(<VehiclesDashboard />, "Vehículos") : <Navigate to="/home" replace /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute requiredDashboard="medicines" />,
+            children: [
+              { path: "/medicines/*", element: features.dashboards.medicines ? dash(<MedicinesDashboard />, "Medicinas") : <Navigate to="/home" replace /> },
             ],
           },
         ],
