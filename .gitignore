@@ -31,3 +31,6 @@ coverage/
 .next/
 .vite/
 scripts/railway-vars.json
+
+# Scripts locales de seed / utilidades
+apps/api/src/scripts/

@@ -14,7 +14,7 @@ export interface StockItem {
   minimum:     number;
   unit:        string;
   location:    string | null;
-  barcode:     string | null;
+  barcodes:    string[];
   notes:       string | null;
   createdAt:   string;
   updatedAt:   string;
@@ -37,7 +37,7 @@ export interface ItemInput {
   minimum?:    number;
   unit?:       string;
   location?:   string | null;
-  barcode?:    string | null;
+  barcodes?:   string[];
   notes?:      string | null;
 }
 
@@ -144,7 +144,9 @@ export function useSeedStockCategories(familyId: string | undefined) {
       api.post<{ categories: StockCategory[] }>(`/stock/${familyId}/categories/seed`, {}),
     onSuccess: ({ data }) => {
       if (!familyId) return;
-      qc.setQueryData<StockCategory[]>(stockKeys.categories(familyId), data.categories);
+      // Normalizar por si el API no incluye items (defensivo)
+      const normalized = data.categories.map(c => ({ ...c, items: c.items ?? [] }));
+      qc.setQueryData<StockCategory[]>(stockKeys.categories(familyId), normalized);
     },
   });
 }
@@ -226,6 +228,25 @@ export function useDeleteStockItem(familyId: string | undefined) {
       removeItem(qc, familyId, itemId);
     },
   });
+}
+
+export function useAddBarcode(familyId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, barcode }: { id: string; barcode: string }) =>
+      api.patch<{ item: StockItem }>(`/stock/${familyId}/items/${id}/barcodes`, { barcode }),
+    onSuccess: ({ data }) => {
+      if (!familyId) return;
+      patchItem(qc, familyId, data.item);
+    },
+  });
+}
+
+export async function searchStockItems(familyId: string, q: string): Promise<StockItem[]> {
+  const { data } = await api.get<{ items: StockItem[] }>(
+    `/stock/${familyId}/items/search?q=${encodeURIComponent(q)}`
+  );
+  return data.items;
 }
 
 /* ════════════════════════════════════

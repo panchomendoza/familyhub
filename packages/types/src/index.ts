@@ -113,7 +113,7 @@ export interface StockItem {
   minimum:     number;
   unit:        string;
   location?:   string;
-  barcode?:    string;
+  barcodes:    string[];
   notes?:      string;
 }
 

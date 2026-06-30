@@ -32,7 +32,7 @@ const itemSchema = z.object({
   minimum:    z.number().min(0).default(0),
   unit:       z.string().max(30).default("unidades"),
   location:   z.string().max(100).optional().nullable(),
-  barcode:    z.string().max(50).optional().nullable(),
+  barcodes:   z.array(z.string().max(100)).default([]),
   notes:      z.string().max(500).optional().nullable(),
 });
 
@@ -62,11 +62,17 @@ stockRoutes.post("/:familyId/categories/seed", requireCsrf, requireFamilyMember(
   if (existing > 0) {
     return c.json({ ok: false, message: "Ya existen categorías para esta familia" }, 409);
   }
-  const categories = await db.$transaction(
+  await db.$transaction(
     DEFAULT_STOCK_CATS.map(cat =>
       db.stockCategory.create({ data: { familyId, ...cat } })
     )
   );
+  // Re-fetch para incluir items (vacíos) y respetar el mismo shape que GET /categories
+  const categories = await db.stockCategory.findMany({
+    where:   { familyId },
+    include: { items: { orderBy: { name: "asc" } } },
+    orderBy: { order: "asc" },
+  });
   return c.json({ categories }, 201);
 });
 
@@ -171,7 +177,7 @@ stockRoutes.get("/:familyId/items/search", requireFamilyMember(), async (c) => {
     where: {
       familyId,
       ...(barcode
-        ? { barcode }
+        ? { barcodes: { has: barcode } }
         : { name: { contains: q, mode: "insensitive" } }),
     },
     include: { category: true },
@@ -180,6 +186,38 @@ stockRoutes.get("/:familyId/items/search", requireFamilyMember(), async (c) => {
   });
 
   return c.json({ items });
+});
+
+// PATCH /stock/:familyId/items/:itemId/barcodes — agrega un barcode al array del producto
+stockRoutes.patch("/:familyId/items/:itemId/barcodes", requireCsrf, requireFamilyMember(), async (c) => {
+  const familyId = c.get("familyId") as string;
+  const itemId   = c.req.param("itemId");
+
+  const existing = await db.stockItem.findFirst({ where: { id: itemId, familyId } });
+  if (!existing) return c.json({ error: "Ítem no encontrado" }, 404);
+
+  const body   = await c.req.json().catch(() => ({}));
+  const parsed = z.object({ barcode: z.string().min(1).max(100) }).safeParse(body);
+  if (!parsed.success) return c.json({ error: "Barcode inválido" }, 400);
+
+  const { barcode } = parsed.data;
+
+  // Verificar que no esté ya asignado a otro producto en la familia
+  const conflict = await db.stockItem.findFirst({
+    where: { familyId, barcodes: { has: barcode }, NOT: { id: itemId } },
+  });
+  if (conflict) return c.json({ error: `El código ya está asignado a "${conflict.name}"` }, 409);
+
+  // Agregar si no existe ya en este producto
+  if (!existing.barcodes.includes(barcode)) {
+    const item = await db.stockItem.update({
+      where: { id: itemId },
+      data:  { barcodes: { push: barcode } },
+    });
+    return c.json({ item });
+  }
+
+  return c.json({ item: existing });
 });
 
 // GET /stock/:familyId/items/:itemId

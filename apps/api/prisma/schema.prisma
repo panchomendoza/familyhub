@@ -230,7 +230,7 @@ model StockItem {
   minimum    Float    @default(0)
   unit       String   @default("unidades")
   location   String?
-  barcode    String?
+  barcodes   String[] @default([])
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -239,7 +239,6 @@ model StockItem {
   category StockCategory @relation(fields: [categoryId], references: [id])
 
   @@index([familyId])
-  @@index([barcode])
 }
 
 // ══════════════════════════════════════════

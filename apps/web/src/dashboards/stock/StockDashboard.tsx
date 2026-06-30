@@ -8,6 +8,7 @@ import { useWindowWidth } from "@/hooks/useWindowWidth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Pagination } from "@/components/ui/Pagination";
 import { StockSkeleton } from "@/components/ui/DashboardSkeletons";
 import { ApiError } from "@/lib/api";
 import { parseApiError, fieldError, type ValidationErrors } from "@/lib/apiErrors";
@@ -17,6 +18,7 @@ import {
   useCreateStockCategory, useDeleteStockCategory,
   useCreateStockItem, useUpdateStockItem,
   useAdjustQuantity, useDeleteStockItem,
+  useAddBarcode, searchStockItems,
   stockStatus,
   type StockCategory, type StockItem, type ItemInput, type CatInput,
 } from "@/hooks/useStock";
@@ -259,24 +261,51 @@ const EMPTY_FORM: ItemForm = {
   unit:"unidades", location:"Despensa", notes:"", barcode:"",
 };
 
-function ModalProduct({ open, initial, initialBarcode, categories, onSave, onClose, onOpenScanner, isMobile, apiErrors, isSaving }: {
+function ModalProduct({ open, initial, initialBarcode, categories, allItems, onSave, onClose, onOpenScanner, onUseExisting, isMobile, apiErrors, isSaving }: {
   open: boolean; initial: StockItem | null; initialBarcode?: string | null; categories: StockCategory[];
+  allItems: StockItem[];
   onSave: (d: ItemInput) => void; onClose: () => void;
-  onOpenScanner: () => void; isMobile: boolean;
+  onOpenScanner: () => void;
+  onUseExisting: (item: StockItem) => void;
+  isMobile: boolean;
   apiErrors?: ValidationErrors | null;
   isSaving?: boolean;
 }) {
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  const [duplicates, setDuplicates]         = useState<StockItem[]>([]);
+  const [ignoreDuplicate, setIgnoreDuplicate] = useState(false);
+
+  // Detección de duplicados: solo en modo creación, mínimo 2 caracteres
+  useEffect(() => {
+    if (initial || ignoreDuplicate || form.name.trim().length < 2) {
+      setDuplicates([]);
+      return;
+    }
+    const q = form.name.trim().toLowerCase();
+    const qWords = q.split(/\s+/);
+    const matches = allItems.filter(i => {
+      const nWords = i.name.toLowerCase().split(/\s+/);
+      // Alguna palabra del producto empieza con alguna palabra del query
+      const prefixMatch = nWords.some(nw => qWords.some(qw => nw.startsWith(qw)));
+      // O el query completo contiene el nombre existente (ej: escribir "Arroz Integral" con "Arroz" en stock)
+      const superMatch = q.includes(i.name.toLowerCase());
+      return prefixMatch || superMatch;
+    }).slice(0, 3);
+    setDuplicates(matches);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name, initial, ignoreDuplicate]);
 
   useEffect(() => {
     if (!open) return;
     setLocalErrors({});
+    setDuplicates([]);
+    setIgnoreDuplicate(false);
     setForm(initial ? {
       name: initial.name, categoryId: initial.categoryId,
       quantity: String(initial.quantity), minimum: String(initial.minimum),
       unit: initial.unit, location: initial.location ?? "Despensa",
-      notes: initial.notes ?? "", barcode: initial.barcode ?? "",
+      notes: initial.notes ?? "", barcode: "",
     } : { ...EMPTY_FORM, categoryId: categories[0]?.id ?? "", barcode: initialBarcode ?? "" });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -307,7 +336,9 @@ function ModalProduct({ open, initial, initialBarcode, categories, onSave, onClo
       name: form.name.trim(), categoryId: form.categoryId,
       quantity: Number(form.quantity) || 0, minimum: Number(form.minimum) || 0,
       unit: form.unit, location: form.location || null,
-      notes: form.notes || null, barcode: form.barcode || null,
+      notes: form.notes || null,
+      // en nuevo: primer barcode del campo; en edición: no tocar barcodes existentes (se gestionan via scan)
+      ...(initial ? {} : { barcodes: form.barcode ? [form.barcode] : [] }),
     });
   }
 
@@ -337,6 +368,40 @@ function ModalProduct({ open, initial, initialBarcode, categories, onSave, onClo
         ].map(({ label, key, type, col, ph, auto }) => (
           <div key={key} className={col === 2 ? "mb-3 col-span-full" : "mb-3"}>
             <label className={styles.catModalLabel} style={{ textTransform:"uppercase", fontSize:11 }}>{label}</label>
+            {/* Advertencia de duplicados (solo en nombre, solo en creación) */}
+            {key === "name" && !initial && duplicates.length > 0 && (
+              <div className={styles.dupWarn}>
+                <div className={styles.dupWarnHeader}>
+                  <span>⚠️</span>
+                  <span>Ya existe un producto similar:</span>
+                </div>
+                {duplicates.map(dup => {
+                  const st = stockStatus(dup);
+                  return (
+                    <div key={dup.id} className={styles.dupWarnItem}>
+                      <div className={styles.dupWarnItemInfo}>
+                        <div className={styles.dupWarnItemName}>{dup.name}</div>
+                        <div className={styles.dupWarnItemMeta}>
+                          <span className={styles.dupWarnDot} style={{ background: st.dot }} />
+                          <span className={styles.dupWarnStatusLabel} style={{ color: st.color }}>{st.label}</span>
+                          <span className={styles.dupWarnQty}>· {dup.quantity} {dup.unit}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onUseExisting(dup)}
+                        className="fh-btn fh-btn-success"
+                        style={{ flexShrink: 0, fontSize: 12, padding: "6px 12px" }}
+                      >
+                        Usar este →
+                      </button>
+                    </div>
+                  );
+                })}
+                <button className={styles.dupWarnIgnore} onClick={() => setIgnoreDuplicate(true)}>
+                  Crear como producto nuevo de todas formas
+                </button>
+              </div>
+            )}
             {type === "select" ? (
               <select className="fh-input" value={form[key]} onChange={f(key)}>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
@@ -366,15 +431,35 @@ function ModalProduct({ open, initial, initialBarcode, categories, onSave, onClo
 
         {/* Barcode */}
         <div className="mb-3">
-          <label className={styles.catModalLabel} style={{ textTransform:"uppercase", fontSize:11 }}>CÓDIGO DE BARRAS</label>
-          <div style={{ display:"flex", gap:6 }}>
-            <input className="fh-input" placeholder="Ej: 7891234567890" value={form.barcode} onChange={f("barcode")} />
-            <button
-              onClick={() => { onClose(); onOpenScanner(); }}
-              className={styles.btnScanSmall}
-              title="Escanear"
-            >📷</button>
-          </div>
+          <label className={styles.catModalLabel} style={{ textTransform:"uppercase", fontSize:11 }}>
+            {initial ? "CÓDIGOS DE BARRAS" : "CÓDIGO DE BARRAS"}
+          </label>
+          {/* Chips de barcodes existentes (solo en edición) */}
+          {initial && initial.barcodes.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
+              {initial.barcodes.map(bc => (
+                <span key={bc} style={{ fontFamily:"monospace", fontSize:11, background:"var(--surface-alt)", border:"1px solid var(--border)", borderRadius:6, padding:"3px 8px", color:"var(--text-muted)" }}>
+                  {bc}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Campo para agregar nuevo barcode (solo en creación, o escanear para vincular en edición vía flujo de scanner) */}
+          {!initial && (
+            <div style={{ display:"flex", gap:6 }}>
+              <input className="fh-input" placeholder="Ej: 7891234567890" value={form.barcode} onChange={f("barcode")} />
+              <button
+                onClick={() => { onClose(); onOpenScanner(); }}
+                className={styles.btnScanSmall}
+                title="Escanear"
+              >📷</button>
+            </div>
+          )}
+          {initial && (
+            <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
+              Para vincular más códigos, escanéalos y elige "Vincular a este producto".
+            </p>
+          )}
           <FErr msg={err("barcode")} />
         </div>
       </div>
@@ -495,6 +580,146 @@ function ModalDeleteCategory({ cat, onClose, onConfirm }: {
 /* ════════════════════════════════════
    Main dashboard
    ════════════════════════════════════ */
+/* ── ModalScanAction: barcode YA existe en el stock ── */
+function ModalScanAction({ barcode, item, onAdd, onConsume, onClose }: {
+  barcode: string; item: StockItem;
+  onAdd: () => void; onConsume: () => void; onClose: () => void;
+}) {
+  const st = stockStatus(item);
+  return (
+    <Modal open onClose={onClose} maxWidth={380}>
+      <div style={{ textAlign:"center", padding:"4px 0 8px" }}>
+        <div style={{ fontSize:36, marginBottom:8 }}>📦</div>
+        <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }} className="fh-text">{item.name}</div>
+        <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>
+          Código: <span style={{ fontFamily:"monospace" }}>{barcode}</span>
+        </div>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:st.bg, borderRadius:20, padding:"4px 12px", marginBottom:20 }}>
+          <span style={{ width:8, height:8, borderRadius:"50%", background:st.dot, display:"inline-block" }} />
+          <span style={{ fontSize:12, fontWeight:700, color:st.color }}>{st.label} — {item.quantity} {item.unit}</span>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <button onClick={onAdd} style={{ padding:"12px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:14, background:"linear-gradient(135deg,#34C78A,#2aab78)", color:"#fff" }}>
+            + Agregar al stock
+          </button>
+          <button onClick={onConsume} style={{ padding:"12px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:14, background:"linear-gradient(135deg,#F7874F,#e06a30)", color:"#fff" }}>
+            − Consumir
+          </button>
+          <button onClick={onClose} style={{ padding:"10px", borderRadius:12, border:"1.5px solid var(--border)", cursor:"pointer", fontFamily:"inherit", fontWeight:600, fontSize:13, background:"none", color:"var(--text-muted)" }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── ModalScanNotFound: barcode NO existe en el stock ── */
+function ModalScanNotFound({ barcode, allItems, familyId, onCreateNew, onLinked, onClose }: {
+  barcode: string; allItems: StockItem[]; familyId: string;
+  onCreateNew: () => void; onLinked: (item: StockItem) => void; onClose: () => void;
+}) {
+  const [mode, setMode]         = useState<"choice"|"link">("choice");
+  const [query, setQuery]       = useState("");
+  const [results, setResults]   = useState<StockItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [linking, setLinking]   = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const mutAdd = useAddBarcode(familyId);
+
+  async function doSearch(q: string) {
+    setQuery(q);
+    if (q.trim().length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      // Buscar localmente primero (más rápido), luego API si hay pocos resultados
+      const local = allItems.filter(i => i.name.toLowerCase().includes(q.toLowerCase()));
+      if (local.length > 0) { setResults(local.slice(0, 8)); }
+      else {
+        const remote = await searchStockItems(familyId, q);
+        setResults(remote.slice(0, 8));
+      }
+    } catch { setResults([]); }
+    finally { setSearching(false); }
+  }
+
+  async function handleLink(item: StockItem) {
+    setLinking(true); setLinkError(null);
+    try {
+      await mutAdd.mutateAsync({ id: item.id, barcode });
+      onLinked(item);
+    } catch (err: unknown) {
+      const msg = (err as { data?: { error?: string } })?.data?.error;
+      setLinkError(msg ?? "Error al vincular. Intenta de nuevo.");
+    } finally { setLinking(false); }
+  }
+
+  return (
+    <Modal open onClose={onClose} maxWidth={400}>
+      {mode === "choice" ? (
+        <div style={{ textAlign:"center", padding:"4px 0 8px" }}>
+          <div style={{ fontSize:36, marginBottom:8 }}>🔍</div>
+          <div style={{ fontWeight:800, fontSize:15, marginBottom:4 }} className="fh-text">Código no encontrado</div>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:20 }}>
+            <span style={{ fontFamily:"monospace" }}>{barcode}</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <button onClick={onCreateNew} style={{ padding:"12px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:14, background:"linear-gradient(135deg,#4F7BF7,#A44FF7)", color:"#fff" }}>
+              + Crear nuevo producto
+            </button>
+            <button onClick={() => setMode("link")} style={{ padding:"12px", borderRadius:12, border:"1.5px solid #4F7BF730", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:14, background:"#4F7BF710", color:"#4F7BF7" }}>
+              🔗 Vincular a producto existente
+            </button>
+            <button onClick={onClose} style={{ padding:"10px", borderRadius:12, border:"1.5px solid var(--border)", cursor:"pointer", fontFamily:"inherit", fontWeight:600, fontSize:13, background:"none", color:"var(--text-muted)" }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <button onClick={() => setMode("choice")} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, padding:0, color:"var(--text-muted)" }}>←</button>
+            <span style={{ fontWeight:700, fontSize:15 }} className="fh-text">Vincular a producto existente</span>
+          </div>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:12 }}>
+            El código <span style={{ fontFamily:"monospace", fontWeight:700 }}>{barcode}</span> quedará vinculado al producto que elijas.
+          </div>
+          <input
+            className="fh-input"
+            placeholder="Buscar producto..."
+            value={query}
+            onChange={e => doSearch(e.target.value)}
+            autoFocus
+            style={{ marginBottom:10 }}
+          />
+          {linkError && <div style={{ fontSize:12, color:"#F74F7B", marginBottom:8, fontWeight:600 }}>{linkError}</div>}
+          <div style={{ maxHeight:260, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
+            {searching && <div style={{ textAlign:"center", color:"var(--text-muted)", fontSize:13, padding:12 }}>Buscando...</div>}
+            {!searching && query.length >= 2 && results.length === 0 && (
+              <div style={{ textAlign:"center", color:"var(--text-muted)", fontSize:13, padding:12 }}>Sin resultados</div>
+            )}
+            {results.map(item => (
+              <button
+                key={item.id}
+                onClick={() => handleLink(item)}
+                disabled={linking}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface-alt)", cursor:"pointer", fontFamily:"inherit", textAlign:"left", opacity: linking ? 0.6 : 1 }}
+              >
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:13, color:"var(--text)" }}>{item.name}</div>
+                  <div style={{ fontSize:11, color:"var(--text-muted)" }}>{item.quantity} {item.unit} · {item.barcodes.length} código{item.barcodes.length !== 1 ? "s" : ""}</div>
+                </div>
+                <span style={{ fontSize:13, color:"#4F7BF7", fontWeight:700 }}>Vincular →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 type ScanFeedback = {
   type: "consume"|"added"|"searching"|"not-found";
   name?: string; quantity?: number; unit?: string;
@@ -522,10 +747,13 @@ export default function StockDashboard() {
   const [scanner, setScanner]               = useState<"add"|"consume"|null>(null);
   const [scanFeedback, setScanFeedback]     = useState<ScanFeedback>(null);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
+  const [scanResult, setScanResult]         = useState<{ barcode: string; item: StockItem | null } | null>(null);
   const [addCatOpen, setAddCatOpen]         = useState(false);
   const [deleteCat, setDeleteCat]           = useState<StockCategory | null>(null);
   const [query, setQuery]                   = useState("");
   const [fabOpen, setFabOpen]               = useState(false);
+  const [page, setPage]                     = useState(1);
+  const PAGE_SIZE = 5;
 
   const { data: categories = [], isLoading } = useStockCategories(familyId);
   const mutSeed      = useSeedStockCategories(familyId);
@@ -533,6 +761,7 @@ export default function StockDashboard() {
   const mutUpdate    = useUpdateStockItem(familyId);
   const mutAdjust    = useAdjustQuantity(familyId);
   const mutDelete    = useDeleteStockItem(familyId);
+  const mutAddBarcode = useAddBarcode(familyId);
   const mutCreateCat = useCreateStockCategory(familyId);
   const mutDeleteCat = useDeleteStockCategory(familyId);
 
@@ -549,24 +778,37 @@ export default function StockDashboard() {
   }, [listView, activeCategory, categories, allItems, shoppingList]);
 
   const filteredItems = useMemo(() =>
-    query ? viewItems.filter(i =>
-      i.name.toLowerCase().includes(query.toLowerCase()) ||
-      (i.location ?? "").toLowerCase().includes(query.toLowerCase())
-    ) : viewItems,
+    query
+      ? viewItems.filter(i =>
+          i.name.toLowerCase().includes(query.toLowerCase()) ||
+          (i.location ?? "").toLowerCase().includes(query.toLowerCase())
+        )
+      : viewItems,
   [viewItems, query]);
+
+  // Resetear página cuando cambia el filtro o la vista
+  useEffect(() => { setPage(1); }, [filteredItems]);
+
+  const totalPages  = Math.ceil(filteredItems.length / PAGE_SIZE);
+  const pagedItems  = filteredItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function getCat(item: StockItem) { return categories.find(c => c.id === item.categoryId); }
 
   function openAdd(catId?: string) {
     setEditItem(null);
-    if (catId && catId !== "Todas") setPendingBarcode(catId);
+    setPendingBarcode(null);
+    if (catId && catId !== "Todas") {
+      // catId here is actually a category ID, not a barcode — keep existing behavior
+    }
     setProductModal(true);
   }
   function openEdit(item: StockItem) { setEditItem(item); setProductModal(true); }
 
   async function handleSaveItem(data: ItemInput) {
     setItemFormErrors(null);
-    const finalData = pendingBarcode ? { ...data, barcode: pendingBarcode } : data;
+    const finalData = pendingBarcode && !editItem
+      ? { ...data, barcodes: [pendingBarcode, ...(data.barcodes ?? [])] }
+      : data;
     try {
       if (editItem) await mutUpdate.mutateAsync({ id: editItem.id, data: finalData });
       else          await mutCreate.mutateAsync(finalData);
@@ -577,7 +819,8 @@ export default function StockDashboard() {
   }
 
   async function handleScan(barcode: string) {
-    const found = allItems.find(i => i.barcode === barcode);
+    const found = allItems.find(i => i.barcodes.includes(barcode));
+
     if (scanner === "consume") {
       if (found) {
         await mutAdjust.mutateAsync({ id: found.id, delta: -1 });
@@ -589,18 +832,9 @@ export default function StockDashboard() {
       setTimeout(() => setScanFeedback(null), 3500);
       return;
     }
-    if (found) {
-      await mutAdjust.mutateAsync({ id: found.id, delta: 1 });
-      setScanFeedback({ type:"added", name:found.name, quantity:found.quantity+1, unit:found.unit, color:"#34C78A" });
-      setTimeout(() => setScanFeedback(null), 3000);
-    } else {
-      setScanFeedback({ type:"searching", color:"#4F7BF7" });
-      await fetchProductInfo(barcode);
-      setScanFeedback(null);
-      setPendingBarcode(barcode);
-      setEditItem(null);
-      setProductModal(true);
-    }
+
+    // Modo "add": mostrar modal de decisión siempre
+    setScanResult({ barcode, item: found ?? null });
   }
 
   function shareWhatsApp() {
@@ -648,8 +882,8 @@ export default function StockDashboard() {
       <div className={`${styles.sectionLabel} fh-section-label`}>VISTAS</div>
 
       {[
-        { label:`📋 Todos los productos`,              active: !listView && activeCategory === "Todas", onClick: () => { setActiveCategory("Todas"); setListView(false); onSelect?.(); } },
-        { label:`🛒 Lista de compras (${shoppingList.length})`, active: listView,                       onClick: () => { setListView(true); onSelect?.(); } },
+        { label:`📋 Todos los productos`,              active: !listView && activeCategory === "Todas", onClick: () => { setActiveCategory("Todas"); setListView(false); setQuery(""); onSelect?.(); } },
+        { label:`🛒 Lista de compras (${shoppingList.length})`, active: listView,                       onClick: () => { setListView(true); setQuery(""); onSelect?.(); } },
       ].map((b, i) => (
         <button
           key={i} onClick={b.onClick}
@@ -670,7 +904,7 @@ export default function StockDashboard() {
         return (
           <div key={cat.id} className={styles.catRow}>
             <button
-              onClick={() => { setActiveCategory(cat.id); setListView(false); onSelect?.(); }}
+              onClick={() => { setActiveCategory(cat.id); setListView(false); setQuery(""); onSelect?.(); }}
               className={`${styles.catBtn} ${active ? styles.catBtnActive : ""}`}
               style={{ "--cat-color": cat.color } as React.CSSProperties}
             >
@@ -760,6 +994,44 @@ export default function StockDashboard() {
                     </button>
                   )}
                 </div>
+
+                {/* Buscador global */}
+                <div className={styles.searchBar}>
+                  <div className={styles.searchWrap}>
+                    <span className={styles.searchIcon} style={{ opacity:0.5 }}>🔍</span>
+                    <input
+                      className={styles.searchInput}
+                      value={query} onChange={e => setQuery(e.target.value)}
+                      placeholder="Buscar en todos los productos..."
+                    />
+                  </div>
+                </div>
+
+                {/* Con query: lista plana filtrada + paginación; sin query: grid de categorías */}
+                {query ? (
+                  <>
+                    <div className={styles.itemList}>
+                      {filteredItems.length === 0 ? (
+                        <p className="fh-text-muted" style={{ fontSize:14, textAlign:"center", padding:"24px 0" }}>
+                          Sin resultados para "{query}"
+                        </p>
+                      ) : pagedItems.map(item => (
+                        <ProductCard key={item.id} item={item} cat={getCat(item)}
+                          onEdit={openEdit}
+                          onDelete={i => setDelItem(i)}
+                          onAdjust={(id, delta) => mutAdjust.mutate({ id, delta })}
+                        />
+                      ))}
+                    </div>
+                    {totalPages > 1 && (
+                      <Pagination
+                        currentPage={page} totalPages={totalPages}
+                        onPageChange={setPage}
+                        totalItems={filteredItems.length} pageSize={PAGE_SIZE}
+                      />
+                    )}
+                  </>
+                ) : (
                 <div className={`${styles.catGrid} grid-cols-1 sm:grid-cols-2`}>
                   {categories.map(cat => {
                     const items   = cat.items;
@@ -810,6 +1082,7 @@ export default function StockDashboard() {
                     );
                   })}
                 </div>
+                )} {/* fin query ? lista+paginación : grid */}
               </>
             )}
 
@@ -860,15 +1133,24 @@ export default function StockDashboard() {
                     )}
                   </div>
                 ) : (
-                  <div className={styles.itemList}>
-                    {filteredItems.map(item => (
-                      <ProductCard key={item.id} item={item} cat={getCat(item)}
-                        onEdit={openEdit}
-                        onDelete={i => setDelItem(i)}
-                        onAdjust={(id, delta) => mutAdjust.mutate({ id, delta })}
+                  <>
+                    <div className={styles.itemList}>
+                      {pagedItems.map(item => (
+                        <ProductCard key={item.id} item={item} cat={getCat(item)}
+                          onEdit={openEdit}
+                          onDelete={i => setDelItem(i)}
+                          onAdjust={(id, delta) => mutAdjust.mutate({ id, delta })}
+                        />
+                      ))}
+                    </div>
+                    {totalPages > 1 && (
+                      <Pagination
+                        currentPage={page} totalPages={totalPages}
+                        onPageChange={setPage}
+                        totalItems={filteredItems.length} pageSize={PAGE_SIZE}
                       />
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -936,7 +1218,51 @@ export default function StockDashboard() {
       )}
 
       {/* Scanner */}
-      {scanner && <ScannerModal mode={scanner} onClose={() => setScanner(null)} onScanned={handleScan} />}
+      {scanner && <ScannerModal mode={scanner} onClose={() => setScanner(null)} onScanned={async (code) => { setScanner(null); await handleScan(code); }} />}
+
+      {/* Modal: barcode encontrado → Agregar / Consumir */}
+      {scanResult?.item && (
+        <ModalScanAction
+          barcode={scanResult.barcode}
+          item={scanResult.item}
+          onAdd={async () => {
+            await mutAdjust.mutateAsync({ id: scanResult.item!.id, delta: 1 });
+            const newQty = scanResult.item!.quantity + 1;
+            setScanResult(null);
+            setScanFeedback({ type:"added", name:scanResult.item!.name, quantity:newQty, unit:scanResult.item!.unit, color:"#34C78A" });
+            setTimeout(() => setScanFeedback(null), 3000);
+          }}
+          onConsume={async () => {
+            await mutAdjust.mutateAsync({ id: scanResult.item!.id, delta: -1 });
+            const newQty = Math.max(0, scanResult.item!.quantity - 1);
+            setScanResult(null);
+            setScanFeedback({ type:"consume", name:scanResult.item!.name, quantity:newQty, unit:scanResult.item!.unit, alert:newQty < scanResult.item!.minimum, color:newQty < scanResult.item!.minimum ? "#F7874F" : "#34C78A" });
+            setTimeout(() => setScanFeedback(null), 3500);
+          }}
+          onClose={() => setScanResult(null)}
+        />
+      )}
+
+      {/* Modal: barcode NO encontrado → Crear nuevo / Vincular */}
+      {scanResult && !scanResult.item && familyId && (
+        <ModalScanNotFound
+          barcode={scanResult.barcode}
+          allItems={allItems}
+          familyId={familyId}
+          onCreateNew={() => {
+            setPendingBarcode(scanResult.barcode);
+            setEditItem(null);
+            setScanResult(null);
+            setProductModal(true);
+          }}
+          onLinked={(item) => {
+            setScanResult(null);
+            setScanFeedback({ type:"added", name:item.name, quantity:item.quantity, unit:item.unit, color:"#4F7BF7" });
+            setTimeout(() => setScanFeedback(null), 3000);
+          }}
+          onClose={() => setScanResult(null)}
+        />
+      )}
 
       {/* Scan feedback toast */}
       {scanFeedback && (
@@ -970,10 +1296,18 @@ export default function StockDashboard() {
       )}
 
       <ModalProduct
+        key={editItem?.id ?? "new"}
         open={productModal} initial={editItem} initialBarcode={pendingBarcode} categories={categories}
+        allItems={allItems}
         onSave={handleSaveItem}
         onClose={() => { setProductModal(false); setPendingBarcode(null); setItemFormErrors(null); }}
         onOpenScanner={() => setScanner("add")}
+        onUseExisting={(item) => {
+          setPendingBarcode(null);
+          setItemFormErrors(null);
+          setEditItem(item);
+          // productModal sigue true; el key cambia → ModalProduct remonta en modo edición
+        }}
         isMobile={isMobile}
         apiErrors={itemFormErrors}
         isSaving={mutCreate.isPending || mutUpdate.isPending}
