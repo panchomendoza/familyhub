@@ -1,0 +1,307 @@
+/* ════════════════════════════════════════════════════════════════
+   MedicinesDashboard  —  accent: #E5534B
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar ── */
+.sidebarHeader   { padding: 20px 20px 14px; border-bottom: 1.5px solid var(--border-light); }
+.sidebarLogo     { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.sidebarTitle    { font-weight: 800; font-size: 16px; color: var(--text); }
+.sidebarSubtitle { font-size: 12px; color: var(--text-muted); }
+
+.sidebarTopActions { display: flex; gap: 6px; margin: 10px 12px 0; }
+
+.btnNav {
+  flex: 1; background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600;
+  color: var(--brand-blue); cursor: pointer; font-family: inherit; transition: opacity 0.12s;
+}
+.btnNav:hover { opacity: 0.8; }
+
+.btnTheme {
+  background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; font-size: 14px; cursor: pointer;
+}
+
+/* ── Sidebar nav ── */
+.sectionLabel {
+  padding: 14px 12px 4px; font-size: 11px; font-weight: 700;
+  color: var(--text-muted); letter-spacing: 0.8px; text-transform: uppercase;
+}
+
+.navItem {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 9px 16px; background: transparent;
+  border: none; border-left: 3px solid transparent; cursor: pointer;
+  font-family: inherit; font-weight: 500; font-size: 13px; color: var(--text-muted);
+  text-align: left; transition: background 0.12s, color 0.12s;
+}
+.navItem:hover    { background: var(--surface-alt); }
+.navItemActive    { font-weight: 700; border-left-color: #E5534B; background: #E5534B14; color: #E5534B; }
+
+.navBadge {
+  font-size: 10px; font-weight: 800; border-radius: 99px;
+  padding: 1px 7px; background: #E5534B18; color: #E5534B;
+}
+.navBadgeMuted { background: var(--surface-alt); color: var(--text-muted); }
+
+.catRow { display: flex; align-items: center; }
+.catBtn {
+  flex: 1; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 8px 9px 16px; background: transparent; border: none;
+  border-left: 3px solid transparent; cursor: pointer; font-family: inherit;
+  font-weight: 500; font-size: 13px; color: var(--text-muted); transition: background 0.12s, color 0.12s;
+}
+.catBtnActive {
+  font-weight: 700; border-left-color: var(--cat-color);
+  background: color-mix(in srgb, var(--cat-color) 8%, transparent); color: var(--cat-color);
+}
+.catAlert {
+  font-size: 10px; font-weight: 700; color: var(--brand-red);
+  background: color-mix(in srgb, var(--brand-red) 10%, transparent); border-radius: 99px; padding: 1px 6px;
+}
+
+/* ── Sidebar bottom ── */
+.sidebarBottom { margin-top: auto; padding: 0 12px 12px; }
+.btnAddMed {
+  width: 100%; background: #E5534B; color: #fff; border: none; border-radius: 8px;
+  padding: 9px 20px; font-weight: 700; font-size: 14px; cursor: pointer;
+  font-family: inherit; transition: opacity 0.12s;
+}
+.btnAddMed:hover { opacity: 0.88; }
+
+/* ── Main content ── */
+.content       { padding: 28px 32px; }
+.contentMobile { padding: 16px 14px 80px; }
+
+/* ── Alert banner ── */
+.alertBanner {
+  display: flex; align-items: center; gap: 12px;
+  background: #F74F7B12; border: 1.5px solid #F74F7B30;
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.alertBannerText { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); min-width: 0; }
+.alertBannerText strong { color: #F74F7B; }
+.alertBannerActions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.alertBannerActions button {
+  background: none; border: 1.5px solid #F74F7B40; border-radius: 7px;
+  padding: 4px 10px; font-size: 12px; font-weight: 700; color: #F74F7B;
+  cursor: pointer; font-family: inherit; transition: background 0.12s;
+}
+.alertBannerActions button:hover { background: #F74F7B14; }
+
+/* ── Stats ── */
+.statsGrid       { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.statsMobile     { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.statCard        { border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 10px; border: 1.5px solid transparent; }
+.statCardMobile  { padding: 10px 12px; }
+.statValue       { font-weight: 800; font-size: 22px; line-height: 1; }
+.statLabel       { font-size: 11px; font-weight: 500; margin-top: 2px; color: var(--text-muted); }
+
+/* ── View header ── */
+.viewHeader      { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.viewHeaderLeft  { display: flex; align-items: center; gap: 10px; }
+.viewTitle       { font-weight: 700; font-size: 16px; color: var(--text); }
+.btnBack         { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text-muted); padding: 0; }
+
+/* ── Search bar ── */
+.searchBar  { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+.searchWrap { flex: 1; position: relative; display: flex; align-items: center; }
+.searchIcon { position: absolute; left: 12px; font-size: 15px; pointer-events: none; opacity: 0.5; }
+.searchInput {
+  width: 100%; padding: 10px 12px 10px 36px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--input-bg); color: var(--text);
+  font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.15s;
+}
+.searchInput:focus        { border-color: #E5534B; }
+.searchInput::placeholder { color: var(--text-hint); }
+
+.btnWhatsApp {
+  background: color-mix(in srgb, #25D366 12%, transparent); color: #25D366;
+  border: 1.5px solid color-mix(in srgb, #25D366 30%, transparent);
+  border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; transition: opacity 0.12s;
+}
+.btnWhatsApp:hover { opacity: 0.8; }
+
+/* ── Item list ── */
+.itemList { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Item card ── */
+.itemCard {
+  background: var(--surface); border-radius: 14px; padding: 14px 16px;
+  border: 1px solid var(--border); border-left: 4px solid transparent;
+  box-shadow: var(--card-shadow); display: flex; align-items: flex-start;
+  gap: 12px; transition: box-shadow 0.12s;
+}
+.itemCard:hover     { box-shadow: 0 4px 16px #00000010; }
+.itemCardDisposed   { opacity: 0.6; }
+
+.catIconSm {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+}
+
+.itemInfo     { flex: 1; min-width: 0; }
+.itemHeader   { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.itemName     { font-weight: 700; font-size: 14px; color: var(--text); }
+.itemDosage   { font-weight: 400; color: var(--text-muted); font-size: 13px; }
+.itemMeta     { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+.itemMetaText { font-size: 12px; color: var(--text-muted); }
+
+.itemStatusBadge {
+  font-size: 10px; font-weight: 700; border-radius: 6px;
+  padding: 2px 7px; border: 1px solid transparent; white-space: nowrap;
+}
+.prescBadge {
+  font-size: 10px; font-weight: 700; border-radius: 6px; padding: 2px 6px;
+  background: #4F7BF714; color: var(--brand-blue); border: 1px solid #4F7BF730;
+}
+
+/* ── Plan section (below card meta) ── */
+.planSection  { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.planBadge {
+  font-size: 10px; font-weight: 700; border-radius: 6px;
+  padding: 3px 8px; border: 1px solid transparent; display: flex; align-items: center; gap: 4px;
+}
+.calBtns { display: flex; gap: 5px; }
+.calBtn {
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; transition: background 0.12s; border: 1px solid;
+  background: var(--surface-alt); color: var(--text-muted); border-color: var(--border);
+}
+.calBtn:hover { background: var(--border); color: var(--text); }
+/* aliases kept for backward compat — same style */
+.calBtnIcs, .calBtnGoogle, .calBtnReminder {}
+
+.reminderInfoBtn {
+  width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: var(--surface-alt); color: var(--text-muted); font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, color 0.12s; flex-shrink: 0;
+}
+.reminderInfoBtn:hover { background: #F7874F18; color: #F7874F; border-color: #F7874F40; }
+
+.reminderTip {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 50;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; width: 260px;
+  box-shadow: 0 8px 24px #00000018;
+}
+.reminderTipClose {
+  position: absolute; top: 8px; right: 10px;
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-muted); padding: 0;
+}
+.reminderTipTitle { font-weight: 700; font-size: 12px; color: var(--text); margin: 0 0 8px; }
+.reminderTipItem  { font-size: 11px; color: var(--text-muted); margin: 0 0 6px; line-height: 1.5; }
+
+/* ── Card right side (qty controls + actions) ── */
+.itemRight   { display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+.itemActions { display: flex; gap: 5px; }
+.btnIconSm   { background: var(--surface-alt); border: none; border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: 12px; transition: opacity 0.12s; }
+.btnIconSm:hover  { opacity: 0.75; }
+.btnIconDanger    { background: var(--danger-bg); }
+.btnIconRestore   { background: #34C78A14; }
+
+/* ── Empty state ── */
+.emptyState { text-align: center; padding: 48px 20px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); }
+.emptyIcon  { font-size: 40px; margin-bottom: 12px; }
+.emptyTitle { font-weight: 700; font-size: 16px; color: var(--text); margin-bottom: 8px; }
+.emptyDesc  { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+/* ── Category overview ── */
+.catGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.catOverviewCard {
+  background: var(--surface); border-radius: 16px; padding: 18px 20px;
+  border: 2px solid transparent; cursor: pointer; box-shadow: var(--card-shadow);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.catOverviewCard:hover { transform: translateY(-2px); box-shadow: 0 6px 20px #00000012; }
+.catOverviewHeader  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.catOverviewLeft    { display: flex; align-items: center; gap: 10px; }
+.catIconLg          { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.catOverviewName    { font-weight: 700; font-size: 15px; color: var(--text); }
+.catOverviewCount   { font-size: 11px; color: var(--text-muted); }
+.catStatusBadge     { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; border: 1px solid transparent; }
+.catProgressBar     { height: 6px; border-radius: 99px; background: var(--surface-alt); overflow: hidden; display: flex; margin-bottom: 12px; }
+.catStatsRow        { display: flex; gap: 12px; }
+.catStatBox         { flex: 1; text-align: center; padding: 6px 0; border-radius: 8px; }
+.catStatValue       { font-weight: 800; font-size: 18px; }
+.catStatLabel       { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+.catOverviewCta     { margin-top: 10px; font-size: 11px; font-weight: 600; text-align: right; }
+
+/* ── Modal form ── */
+.formLabel   { font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.formActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+.planFormBox {
+  background: var(--surface-alt); border-radius: 10px; padding: 14px;
+  border: 1.5px solid var(--border); margin-top: 8px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.planPreview {
+  grid-column: 1/-1; font-size: 12px; color: var(--text-muted);
+  padding: 8px 10px; background: var(--surface); border-radius: 8px; line-height: 1.6;
+}
+
+/* ── Treatment Plan card ── */
+.planCard {
+  background: var(--surface); border-radius: 16px; padding: 18px 20px;
+  border: 1.5px solid var(--border); box-shadow: var(--card-shadow);
+  display: flex; flex-direction: column; gap: 12px;
+  transition: box-shadow 0.12s;
+}
+.planCard:hover { box-shadow: 0 4px 18px #00000010; }
+
+.planCardHeader   { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.planCardMeta     { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.planCardName     { font-weight: 800; font-size: 15px; color: var(--text); }
+.planCardInfo     { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+.planCardBadge    { font-size: 11px; font-weight: 700; border-radius: 8px; padding: 4px 10px; border: 1px solid transparent; white-space: nowrap; flex-shrink: 0; }
+.planCardNotes    { font-size: 12px; color: var(--text-muted); font-style: italic; margin: 0; }
+.planCardActions  { display: flex; align-items: center; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border-light); }
+
+.planProgressTrack { height: 5px; border-radius: 99px; background: var(--surface-alt); overflow: hidden; }
+.planProgressFill  { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+.planMedList { display: flex; flex-direction: column; gap: 6px; }
+.planMedRow  { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: var(--surface-alt); border-radius: 10px; }
+.planMedInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.planMedName { font-weight: 700; font-size: 13px; color: var(--text); }
+.planMedFreq { font-size: 11px; color: var(--text-muted); }
+
+/* ── Plan modal: medicine picker ── */
+.medPickerBox {
+  background: var(--surface-alt); border-radius: 10px; padding: 10px;
+  border: 1.5px solid var(--border); margin-bottom: 10px;
+}
+.medPickerList { max-height: 170px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.medPickerItem {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; background: transparent; border: none; border-radius: 7px;
+  cursor: pointer; font-family: inherit; font-size: 13px; color: var(--text);
+  text-align: left; transition: background 0.1s;
+}
+.medPickerItem:hover { background: var(--surface); }
+
+/* ── Plan modal: medicine entry ── */
+.planEntryBox {
+  background: var(--surface-alt); border-radius: 10px; padding: 12px;
+  border: 1.5px solid var(--border);
+}
+.planEntryHeader { display: flex; align-items: center; gap: 8px; }
+.planEntryName   { font-weight: 700; font-size: 13px; color: var(--text); flex: 1; min-width: 0; }
+.planStockPreview {
+  margin-top: 8px; padding: 6px 10px; border-radius: 7px; border: 1px solid transparent;
+  font-size: 11px; color: var(--text-muted); line-height: 1.4;
+}
+
+/* ── Mobile FAB ── */
+.mobileAdd {
+  position: fixed; bottom: 20px; right: 16px; z-index: 100;
+  background: #E5534B; color: #fff; border: none; border-radius: 50%;
+  width: 52px; height: 52px; font-size: 24px; cursor: pointer;
+  box-shadow: 0 4px 16px #E5534B55; display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s;
+}

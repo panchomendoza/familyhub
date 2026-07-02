@@ -28,7 +28,7 @@ const updateFamilySchema = z.object({
 
 const updateMemberSchema = z.object({
   role:            z.enum(["admin", "member"]).optional(),
-  dashboardAccess: z.array(z.enum(["health", "stock", "expenses", "tasks"])).optional(),
+  dashboardAccess: z.array(z.enum(["health", "stock", "expenses", "tasks", "vehicles", "medicines"])).optional(),
 });
 
 // ══════════════════════════════════════════

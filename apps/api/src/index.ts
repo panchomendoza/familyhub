@@ -13,6 +13,7 @@ import { expensesRoutes } from "./routes/expenses.js";
 import { healthRoutes }   from "./routes/health.js";
 import { stockRoutes }    from "./routes/stock.js";
 import { vehiclesRoutes } from "./routes/vehicles.js";
+import { medicinesRoutes } from "./routes/medicines.js";
 
 const app = new Hono();
 
@@ -97,6 +98,7 @@ app.route("/expenses", expensesRoutes);
 app.route("/health",   healthRoutes);
 app.route("/stock",    stockRoutes);
 app.route("/vehicles", vehiclesRoutes);
+app.route("/medicines", medicinesRoutes);
 
 // Health check (ruta dedicada, no conflicta con healthRoutes del dashboard)
 app.get("/_health", (c) =>

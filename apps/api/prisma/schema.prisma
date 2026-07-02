@@ -120,6 +120,8 @@ model Family {
   stockCategories   StockCategory[]
   children          Child[]
   vehicles          Vehicle[]
+  medicines         Medicine[]
+  treatmentPlans    TreatmentPlan[]
 }
 
 model FamilyMember {
@@ -365,6 +367,74 @@ model Attachment {
   visit   Visit?   @relation(fields: [visitId], references: [id])
 
   @@index([childId])
+}
+
+// ══════════════════════════════════════════
+//   DASHBOARD: MEDICINES
+// ══════════════════════════════════════════
+
+model Medicine {
+  id                   String   @id @default(cuid())
+  familyId             String
+  name                 String
+  // Categoría fija del frontend: "analgesicos" | "antibioticos" | "vitaminas" | "topicos" | "digestivos" | "otros"
+  categoryId           String
+  dosage               String   @default("")
+  quantity             Int      @default(0)
+  minimum              Int      @default(0)
+  unit                 String   @default("comprimidos")
+  // Fecha date-only "YYYY-MM-DD" — el frontend la compone sin zona horaria
+  expiryDate           String
+  location             String   @default("Botiquín")
+  forMember            String   @default("Familia")
+  frequencyHours       Int?     // null = sin especificar; 0 = según necesidad
+  indications          String?
+  requiresPrescription Boolean  @default(false)
+  disposed             Boolean  @default(false)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  family      Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planEntries TreatmentPlanEntry[]
+
+  @@index([familyId])
+}
+
+model TreatmentPlan {
+  id           String   @id @default(cuid())
+  familyId     String
+  name         String
+  forMember    String   @default("Familia")
+  prescribedBy String?
+  // Fecha date-only "YYYY-MM-DD"
+  startDate    String
+  days         Int?     // null = crónico
+  notes        String?
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  family  Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entries TreatmentPlanEntry[]
+
+  @@index([familyId])
+}
+
+model TreatmentPlanEntry {
+  id             String   @id @default(cuid())
+  planId         String
+  medicineId     String
+  frequencyHours Int      @default(8) // 0 = según necesidad
+  reminderTimes  String[] @default([]) // ["08:00", "20:00", ...]
+  unitsPerDose   Int      @default(1)
+  notes          String?
+
+  plan     TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  medicine Medicine      @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, medicineId])
+  @@index([medicineId])
 }
 
 // ══════════════════════════════════════════

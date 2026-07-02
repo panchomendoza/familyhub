@@ -35,7 +35,7 @@ export interface RegisterInput {
 //   FAMILIAS
 // ══════════════════════════════════════════
 
-export type DashboardId = "health" | "stock" | "expenses" | "tasks" | "vehicles";
+export type DashboardId = "health" | "stock" | "expenses" | "tasks" | "vehicles" | "medicines";
 
 export interface FamilyMember {
   id:              string;   // id del registro FamilyMember (para PATCH/DELETE)
@@ -194,6 +194,54 @@ export interface Attachment {
   notes?:     string;
   // URL firmada (pre-signed) para acceso — NO se persiste, se genera on-demand
   url?:       string;
+}
+
+// ══════════════════════════════════════════
+//   MEDICINAS
+// ══════════════════════════════════════════
+
+export type MedicineUnit =
+  | "comprimidos" | "cápsulas" | "ml" | "sobres" | "gotas" | "parches" | "unidades";
+
+export interface Medicine {
+  id:                    string;
+  familyId:              string;
+  name:                  string;
+  categoryId:            string;   // categoría fija del frontend (analgesicos, antibioticos, ...)
+  dosage:                string;
+  quantity:              number;
+  minimum:               number;
+  unit:                  MedicineUnit;
+  expiryDate:            string;   // "YYYY-MM-DD"
+  location:              string;
+  forMember:             string;
+  frequencyHours?:       number | null;  // 0 = según necesidad
+  indications?:          string | null;
+  requiresPrescription:  boolean;
+  disposed:              boolean;
+  notes?:                string | null;
+}
+
+export interface TreatmentPlanEntry {
+  id:             string;
+  medicineId:     string;
+  frequencyHours: number;    // 0 = según necesidad
+  reminderTimes:  string[];  // ["08:00", "20:00", ...]
+  unitsPerDose:   number;
+  notes?:         string | null;
+}
+
+export interface TreatmentPlan {
+  id:            string;
+  familyId:      string;
+  name:          string;
+  forMember:     string;
+  prescribedBy?: string | null;
+  startDate:     string;         // "YYYY-MM-DD"
+  days:          number | null;  // null = crónico
+  notes?:        string | null;
+  archived:      boolean;
+  entries:       TreatmentPlanEntry[];
 }
 
 // ══════════════════════════════════════════

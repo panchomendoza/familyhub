@@ -26,6 +26,7 @@ export const features = {
     stock:    flag("VITE_FEATURE_DASHBOARD_STOCK"),
     expenses: flag("VITE_FEATURE_DASHBOARD_EXPENSES"),
     vehicles: flag("VITE_FEATURE_DASHBOARD_VEHICLES"),
-    tasks:    flag("VITE_FEATURE_DASHBOARD_TASKS"),
+    tasks:     flag("VITE_FEATURE_DASHBOARD_TASKS"),
+    medicines: flag("VITE_FEATURE_DASHBOARD_MEDICINES"),
   },
 } as const;
