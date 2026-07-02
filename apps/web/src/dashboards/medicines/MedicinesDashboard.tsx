@@ -9,6 +9,15 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { FieldError as FErr } from "@/components/ui/FieldError";
+import { StockSkeleton } from "@/components/ui/DashboardSkeletons";
+import { parseApiError, type ValidationErrors } from "@/lib/apiErrors";
+import {
+  useMedicines, useTreatmentPlans,
+  useCreateMedicine, useUpdateMedicine, useAdjustMedicineQuantity, useDeleteMedicine,
+  useCreatePlan, useUpdatePlan, useDeletePlan,
+  type MedicineInput, type PlanInput,
+} from "@/hooks/useMedicines";
+import type { Medicine, TreatmentPlan } from "@familyhub/types";
 import styles from "./MedicinesDashboard.module.css";
 
 /* ════════════════════════════════════
@@ -21,43 +30,7 @@ type MedView     = "all" | "expiring" | "restock" | "expired" | "plans" | "dispo
 
 interface MedCategory { id: string; label: string; icon: string; color: string; }
 
-interface PlanEntry {
-  medicineId:     string;
-  frequencyHours: number;    // hours between doses; 0 = as needed
-  reminderTimes:  string[];  // ["08:00", "20:00", ...]
-  unitsPerDose:   number;    // units deducted from stock per dose
-  notes?:         string;
-}
-
-interface TreatmentPlan {
-  id:            string;
-  name:          string;
-  forMember:     string;
-  prescribedBy?: string;
-  startDate:     string;
-  days:          number | null;  // null = crónico
-  notes?:        string;
-  entries:       PlanEntry[];
-  archived?:     boolean;
-}
-
-interface Medicine {
-  id:                    string;
-  name:                  string;
-  categoryId:            string;
-  dosage:                string;
-  quantity:              number;
-  minimum:               number;
-  unit:                  MedUnit;
-  expiryDate:            string;
-  location:              MedLocation;
-  forMember:             string;
-  frequencyHours?:       number;  // default hint; overridden per plan entry
-  indications?:          string;
-  requiresPrescription?: boolean;
-  disposed?:             boolean;
-  notes?:                string;
-}
+// Medicine y TreatmentPlan vienen de @familyhub/types (persistidos vía API)
 
 type MedForm = {
   name: string; categoryId: string; dosage: string;
@@ -119,106 +92,6 @@ const EMPTY_PLAN_FORM: PlanForm = {
   name: "", forMember: "", prescribedBy: "",
   startDate: new Date().toISOString().split("T")[0]!, days: "7", notes: "",
 };
-
-/* ════════════════════════════════════
-   Initial data (dates relative to 2026-06-30)
-   ════════════════════════════════════ */
-
-const INITIAL_MEDICINES: Medicine[] = [
-  {
-    id: "m1", name: "Paracetamol", categoryId: "analgesicos", dosage: "500mg",
-    quantity: 15, minimum: 10, unit: "comprimidos", expiryDate: "2027-03-15",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 8,
-    indications: "Tomar con agua. Máximo 4g/día.",
-  },
-  {
-    id: "m2", name: "Ibuprofeno", categoryId: "analgesicos", dosage: "400mg",
-    quantity: 8, minimum: 6, unit: "comprimidos", expiryDate: "2026-07-20",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 0,
-    indications: "Tomar con comida. No usar más de 3 días sin indicación médica.",
-  },
-  {
-    id: "m3", name: "Amoxicilina", categoryId: "antibioticos", dosage: "500mg",
-    quantity: 14, minimum: 1, unit: "cápsulas", expiryDate: "2027-01-10",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 12,
-    indications: "Completar el tratamiento aunque mejore.", requiresPrescription: true,
-  },
-  {
-    id: "m4", name: "Vitamina C", categoryId: "vitaminas", dosage: "1000mg",
-    quantity: 30, minimum: 10, unit: "sobres", expiryDate: "2027-06-01",
-    location: "Cajón baño", forMember: "Familia", frequencyHours: 24,
-  },
-  {
-    id: "m5", name: "Loratadina", categoryId: "analgesicos", dosage: "10mg",
-    quantity: 5, minimum: 4, unit: "comprimidos", expiryDate: "2025-12-01",
-    location: "Botiquín", forMember: "Familia", disposed: true,
-  },
-  {
-    id: "m6", name: "Omeprazol", categoryId: "digestivos", dosage: "20mg",
-    quantity: 14, minimum: 7, unit: "cápsulas", expiryDate: "2026-07-10",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 24,
-    indications: "Tomar 30 min antes del desayuno.",
-  },
-  {
-    id: "m7", name: "Suero oral", categoryId: "digestivos", dosage: "",
-    quantity: 3, minimum: 2, unit: "sobres", expiryDate: "2026-12-15",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 0,
-  },
-  {
-    id: "m8", name: "Alcohol 70°", categoryId: "topicos", dosage: "",
-    quantity: 250, minimum: 100, unit: "ml", expiryDate: "2027-03-01",
-    location: "Cajón baño", forMember: "Familia",
-  },
-  {
-    id: "m9", name: "Vitamina D3", categoryId: "vitaminas", dosage: "2000 UI",
-    quantity: 60, minimum: 30, unit: "comprimidos", expiryDate: "2027-09-01",
-    location: "Cajón baño", forMember: "Familia", frequencyHours: 24,
-  },
-  {
-    id: "m10", name: "Ketorolaco", categoryId: "analgesicos", dosage: "10mg",
-    quantity: 0, minimum: 2, unit: "comprimidos", expiryDate: "2026-04-20",
-    location: "Botiquín", forMember: "Familia", requiresPrescription: true, disposed: true,
-  },
-  {
-    id: "m11", name: "Betametasona", categoryId: "topicos", dosage: "0.1%",
-    quantity: 1, minimum: 1, unit: "unidades", expiryDate: "2027-05-10",
-    location: "Cajón baño", forMember: "Familia", frequencyHours: 12,
-    indications: "Aplicar capa delgada. No usar en cara.",
-  },
-  {
-    id: "m12", name: "Metoclopramida", categoryId: "digestivos", dosage: "10mg",
-    quantity: 6, minimum: 4, unit: "comprimidos", expiryDate: "2026-07-25",
-    location: "Botiquín", forMember: "Familia", frequencyHours: 8,
-    indications: "Tomar 30 min antes de las comidas.", requiresPrescription: true,
-  },
-];
-
-const INITIAL_PLANS: TreatmentPlan[] = [
-  {
-    id: "p1", name: "Tratamiento gripe", forMember: "Familia",
-    startDate: "2026-06-30", days: 5,
-    entries: [
-      { medicineId: "m1", frequencyHours: 8,  reminderTimes: ["08:00", "16:00", "00:00"], unitsPerDose: 1 },
-      { medicineId: "m7", frequencyHours: 0,  reminderTimes: [],                           unitsPerDose: 1 },
-    ],
-  },
-  {
-    id: "p2", name: "Antibiótico H. pylori", forMember: "Familia",
-    prescribedBy: "Dr. García", startDate: "2026-07-01", days: 7,
-    entries: [
-      { medicineId: "m3", frequencyHours: 12, reminderTimes: ["08:00", "20:00"], unitsPerDose: 1 },
-      { medicineId: "m6", frequencyHours: 24, reminderTimes: ["07:30"],          unitsPerDose: 1 },
-    ],
-  },
-  {
-    id: "p3", name: "Suplementos diarios", forMember: "Familia",
-    startDate: "2026-01-01", days: null,
-    entries: [
-      { medicineId: "m4", frequencyHours: 24, reminderTimes: ["09:00"], unitsPerDose: 1 },
-      { medicineId: "m9", frequencyHours: 24, reminderTimes: ["09:00"], unitsPerDose: 1 },
-    ],
-  },
-];
 
 /* ════════════════════════════════════
    Helpers
@@ -486,19 +359,23 @@ function shareRestockWhatsApp(restock: Medicine[]) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
 }
 
-function formToMedicine(form: MedForm): Omit<Medicine, "id"> {
-  const base: Omit<Medicine, "id" | "frequencyHours" | "indications" | "requiresPrescription" | "notes"> = {
-    name: form.name.trim(), categoryId: form.categoryId, dosage: form.dosage.trim(),
-    quantity: Number(form.quantity) || 0, minimum: Number(form.minimum) || 0,
-    unit: form.unit as MedUnit, expiryDate: form.expiryDate,
-    location: form.location as MedLocation, forMember: form.forMember,
+function formToMedicine(form: MedForm): MedicineInput {
+  // Los campos opcionales se envían siempre (null si están vacíos) para poder limpiarlos al editar
+  return {
+    name:                 form.name.trim(),
+    categoryId:           form.categoryId,
+    dosage:               form.dosage.trim(),
+    quantity:             Number(form.quantity) || 0,
+    minimum:              Number(form.minimum) || 0,
+    unit:                 form.unit,
+    expiryDate:           form.expiryDate,
+    location:             form.location,
+    forMember:            form.forMember.trim() || "Familia",
+    frequencyHours:       form.frequencyHours === "" ? null : Number(form.frequencyHours),
+    indications:          form.indications.trim() || null,
+    requiresPrescription: form.requiresPrescription,
+    notes:                form.notes.trim() || null,
   };
-  const extras: Partial<Pick<Medicine, "frequencyHours" | "indications" | "requiresPrescription" | "notes">> = {};
-  if (form.frequencyHours !== "") extras.frequencyHours    = Number(form.frequencyHours);
-  if (form.indications)           extras.indications       = form.indications;
-  if (form.requiresPrescription)  extras.requiresPrescription = true;
-  if (form.notes)                 extras.notes             = form.notes;
-  return { ...base, ...extras };
 }
 
 /* ════════════════════════════════════
@@ -723,11 +600,13 @@ function PlanCard({ plan, medicines, onEdit, onArchive, onDownloadICS, onOpenGoo
    ModalMedicine  (simplified — no plan section)
    ════════════════════════════════════ */
 
-function ModalMedicine({ open, initial, memberOptions, onSave, onClose }: {
+function ModalMedicine({ open, initial, memberOptions, onSave, onClose, apiErrors, isSaving }: {
   open: boolean; initial: Medicine | null;
   memberOptions: string[];
-  onSave: (data: Omit<Medicine, "id">) => void;
+  onSave: (data: MedicineInput) => void;
   onClose: () => void;
+  apiErrors?: ValidationErrors | null;
+  isSaving?: boolean;
 }) {
   const [form,   setForm]   = useState<MedForm>(EMPTY_MED_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -769,6 +648,12 @@ function ModalMedicine({ open, initial, memberOptions, onSave, onClose }: {
         <span style={{ fontWeight: 700, fontSize: 16 }} className="fh-text">{initial ? "Editar medicina" : "Agregar medicina"}</span>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0 }} className="fh-text-muted">✕</button>
       </div>
+
+      {apiErrors?.message && (
+        <div style={{ marginBottom: 14, padding: "10px 14px", background: C.danger + "14", border: `1px solid ${C.danger}40`, borderRadius: 10, fontSize: 13, color: C.danger, fontWeight: 600 }}>
+          ⚠️ {apiErrors.message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-x-3.5">
         <div className="col-span-full mb-3">
@@ -852,9 +737,9 @@ function ModalMedicine({ open, initial, memberOptions, onSave, onClose }: {
 
       <div className={styles.formActions}>
         <button onClick={onClose} className="fh-btn fh-btn-ghost">Cancelar</button>
-        <button onClick={() => { if (validate()) onSave(formToMedicine(form)); }}
-          style={{ background: "#E5534B", color: "#fff", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
-          Guardar
+        <button onClick={() => { if (validate()) onSave(formToMedicine(form)); }} disabled={isSaving}
+          style={{ background: "#E5534B", color: "#fff", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, fontSize: 14, cursor: isSaving ? "default" : "pointer", fontFamily: "inherit", opacity: isSaving ? 0.7 : 1 }}>
+          {isSaving ? "Guardando..." : "Guardar"}
         </button>
       </div>
     </Modal>
@@ -865,11 +750,13 @@ function ModalMedicine({ open, initial, memberOptions, onSave, onClose }: {
    ModalPlan
    ════════════════════════════════════ */
 
-function ModalPlan({ open, initial, medicines, memberOptions, onSave, onClose }: {
+function ModalPlan({ open, initial, medicines, memberOptions, onSave, onClose, apiErrors, isSaving }: {
   open: boolean; initial: TreatmentPlan | null;
   medicines: Medicine[]; memberOptions: string[];
-  onSave:  (data: Omit<TreatmentPlan, "id">) => void;
+  onSave:  (data: PlanInput) => void;
   onClose: () => void;
+  apiErrors?: ValidationErrors | null;
+  isSaving?: boolean;
 }) {
   const W       = useWindowWidth();
   const isNarrow = W < 620;
@@ -951,27 +838,22 @@ function ModalPlan({ open, initial, medicines, memberOptions, onSave, onClose }:
 
   function handleSave() {
     if (!validate()) return;
-    const planBase: Omit<TreatmentPlan, "id" | "prescribedBy" | "notes"> = {
-      name:      form.name.trim(),
-      forMember: form.forMember,
-      startDate: form.startDate,
-      days:      form.days === "0" ? null : Number(form.days),
-      entries:   entries.map(entry => {
-        const eBase: Omit<PlanEntry, "notes"> = {
-          medicineId:     entry.medicineId,
-          frequencyHours: Number(entry.frequencyHours) || 0,
-          reminderTimes:  entry.reminderTimes,
-          unitsPerDose:   Number(entry.unitsPerDose) || 1,
-        };
-        const eExtras: Partial<Pick<PlanEntry, "notes">> = {};
-        if (entry.notes) eExtras.notes = entry.notes;
-        return { ...eBase, ...eExtras };
-      }),
-    };
-    const planExtras: Partial<Pick<TreatmentPlan, "prescribedBy" | "notes">> = {};
-    if (form.prescribedBy) planExtras.prescribedBy = form.prescribedBy;
-    if (form.notes)        planExtras.notes        = form.notes;
-    onSave({ ...planBase, ...planExtras });
+    // Opcionales siempre presentes (null si vacíos) para poder limpiarlos al editar
+    onSave({
+      name:         form.name.trim(),
+      forMember:    form.forMember.trim() || "Familia",
+      prescribedBy: form.prescribedBy.trim() || null,
+      startDate:    form.startDate,
+      days:         form.days === "0" ? null : Number(form.days),
+      notes:        form.notes.trim() || null,
+      entries:      entries.map(entry => ({
+        medicineId:     entry.medicineId,
+        frequencyHours: Number(entry.frequencyHours) || 0,
+        reminderTimes:  entry.reminderTimes,
+        unitsPerDose:   Number(entry.unitsPerDose) || 1,
+        notes:          entry.notes.trim() || null,
+      })),
+    });
   }
 
   const availableMeds = useMemo(() => {
@@ -993,6 +875,12 @@ function ModalPlan({ open, initial, medicines, memberOptions, onSave, onClose }:
         </span>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0 }} className="fh-text-muted">✕</button>
       </div>
+
+      {apiErrors?.message && (
+        <div style={{ marginBottom: 14, padding: "10px 14px", background: C.danger + "14", border: `1px solid ${C.danger}40`, borderRadius: 10, fontSize: 13, color: C.danger, fontWeight: 600 }}>
+          ⚠️ {apiErrors.message}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr", gap: 24, alignItems: "start" }}>
 
@@ -1199,9 +1087,9 @@ function ModalPlan({ open, initial, medicines, memberOptions, onSave, onClose }:
           </p>
         )}
         <button onClick={onClose} className="fh-btn fh-btn-ghost">Cancelar</button>
-        <button onClick={handleSave}
-          style={{ background: "#E5534B", color: "#fff", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
-          {initial ? "Guardar cambios" : "Crear plan"}
+        <button onClick={handleSave} disabled={isSaving}
+          style={{ background: "#E5534B", color: "#fff", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, fontSize: 14, cursor: isSaving ? "default" : "pointer", fontFamily: "inherit", opacity: isSaving ? 0.7 : 1 }}>
+          {isSaving ? "Guardando..." : initial ? "Guardar cambios" : "Crear plan"}
         </button>
       </div>
     </Modal>
@@ -1219,9 +1107,23 @@ export default function MedicinesDashboard() {
   const isDesktop   = W >= 1024;
   const isMobile    = W < 640;
   const { currentFamily } = useAuthStore();
+  const familyId = currentFamily?.id;
 
-  const [medicines,   setMedicines]   = useState<Medicine[]>(INITIAL_MEDICINES);
-  const [treatPlans,  setTreatPlans]  = useState<TreatmentPlan[]>(INITIAL_PLANS);
+  const { data: medicines = [],  isLoading: medsLoading }  = useMedicines(familyId);
+  const { data: treatPlans = [], isLoading: plansLoading } = useTreatmentPlans(familyId);
+  const isLoading = medsLoading || plansLoading;
+
+  const mutCreateMed  = useCreateMedicine(familyId);
+  const mutUpdateMed  = useUpdateMedicine(familyId);
+  const mutAdjustMed  = useAdjustMedicineQuantity(familyId);
+  const mutDeleteMed  = useDeleteMedicine(familyId);
+  const mutCreatePlan = useCreatePlan(familyId);
+  const mutUpdatePlan = useUpdatePlan(familyId);
+  const mutDeletePlan = useDeletePlan(familyId);
+
+  const [medFormErrors,  setMedFormErrors]  = useState<ValidationErrors | null>(null);
+  const [planFormErrors, setPlanFormErrors] = useState<ValidationErrors | null>(null);
+
   const [view,        setView]        = useState<MedView>("all");
   const [activeCat,   setActiveCat]   = useState<string>("all");
   const [query,       setQuery]       = useState("");
@@ -1293,65 +1195,60 @@ export default function MedicinesDashboard() {
   function getCat(m: Medicine) { return CATEGORIES.find(c => c.id === m.categoryId); }
 
   /* ── Medicine CRUD ── */
-  function handleSaveMed(data: Omit<Medicine, "id">) {
-    if (editMed) {
-      setMedicines(prev => prev.map(m => m.id === editMed.id ? { ...data, id: m.id } : m));
-    } else {
-      setMedicines(prev => [...prev, { ...data, id: crypto.randomUUID() }]);
+  async function handleSaveMed(data: MedicineInput) {
+    setMedFormErrors(null);
+    try {
+      if (editMed) await mutUpdateMed.mutateAsync({ id: editMed.id, data });
+      else         await mutCreateMed.mutateAsync(data);
+      setMedModalOpen(false); setEditMed(null);
+    } catch (err) {
+      setMedFormErrors(parseApiError(err));
     }
-    setMedModalOpen(false); setEditMed(null);
   }
 
   function handleAdjust(id: string, delta: number) {
-    setMedicines(prev => prev.map(m => m.id === id ? { ...m, quantity: Math.max(0, m.quantity + delta) } : m));
+    mutAdjustMed.mutate({ id, delta });
   }
 
-  function handleDispose(med: Medicine) {
-    setMedicines(prev => prev.map(m => m.id === med.id ? { ...m, disposed: true } : m));
+  async function handleDispose(med: Medicine) {
+    await mutUpdateMed.mutateAsync({ id: med.id, data: { disposed: true } }).catch(() => {});
     setDisposeMed(null);
   }
 
   function handleRestore(med: Medicine) {
-    setMedicines(prev => prev.map(m => m.id === med.id ? { ...m, disposed: false } : m));
+    mutUpdateMed.mutate({ id: med.id, data: { disposed: false } });
   }
 
-  function handleDeleteMed(med: Medicine) {
-    setMedicines(prev => prev.filter(m => m.id !== med.id));
+  async function handleDeleteMed(med: Medicine) {
+    await mutDeleteMed.mutateAsync(med.id).catch(() => {});
     setDelMed(null);
   }
 
   /* ── Plan CRUD ── */
-  function handleSavePlan(data: Omit<TreatmentPlan, "id">) {
-    const isNew = !editPlan;
-    if (isNew) {
-      const newPlan = { ...data, id: crypto.randomUUID() };
-      setTreatPlans(prev => [...prev, newPlan]);
-      // Deduct stock for finite plans
-      if (data.days !== null) {
-        setMedicines(prev => prev.map(med => {
-          const entry = data.entries.find(e => e.medicineId === med.id);
-          if (!entry || entry.frequencyHours === 0) return med;
-          const dpd      = entry.frequencyHours < 24 ? Math.floor(24 / entry.frequencyHours) : 1 / (entry.frequencyHours / 24);
-          const toDeduct = Math.ceil(data.days! * dpd) * entry.unitsPerDose;
-          return { ...med, quantity: Math.max(0, med.quantity - toDeduct) };
-        }));
-      }
-    } else if (editPlan) {
-      setTreatPlans(prev => prev.map(p => p.id === editPlan.id ? { ...data, id: p.id } : p));
+  async function handleSavePlan(data: PlanInput) {
+    // El backend descuenta el stock al crear planes finitos (misma fórmula que la preview del modal)
+    setPlanFormErrors(null);
+    try {
+      if (editPlan) await mutUpdatePlan.mutateAsync({ id: editPlan.id, data });
+      else          await mutCreatePlan.mutateAsync(data);
+      setPlanModalOpen(false); setEditPlan(null);
+    } catch (err) {
+      setPlanFormErrors(parseApiError(err));
     }
-    setPlanModalOpen(false); setEditPlan(null);
   }
 
-  function handleArchivePlan(plan: TreatmentPlan) {
-    setTreatPlans(prev => prev.map(p => p.id === plan.id ? { ...p, archived: true } : p));
+  async function handleArchivePlan(plan: TreatmentPlan) {
+    // En el historial el botón 🗄️ elimina definitivamente; en activos, archiva
+    if (plan.archived) await mutDeletePlan.mutateAsync(plan.id).catch(() => {});
+    else await mutUpdatePlan.mutateAsync({ id: plan.id, data: { archived: true } }).catch(() => {});
     setArchivePlan(null);
   }
 
   /* ── Navigation ── */
-  function openAdd()              { setEditMed(null);  setMedModalOpen(true); }
-  function openEdit(m: Medicine)  { setEditMed(m);     setMedModalOpen(true); }
-  function openAddPlan()          { setEditPlan(null); setPlanModalOpen(true); }
-  function openEditPlan(p: TreatmentPlan) { setEditPlan(p); setPlanModalOpen(true); }
+  function openAdd()              { setMedFormErrors(null);  setEditMed(null);  setMedModalOpen(true); }
+  function openEdit(m: Medicine)  { setMedFormErrors(null);  setEditMed(m);     setMedModalOpen(true); }
+  function openAddPlan()          { setPlanFormErrors(null); setEditPlan(null); setPlanModalOpen(true); }
+  function openEditPlan(p: TreatmentPlan) { setPlanFormErrors(null); setEditPlan(p); setPlanModalOpen(true); }
   function switchView(v: MedView) { setView(v); setActiveCat("all"); setQuery(""); setPage(1); }
   function switchCat(id: string)  { setView("all"); setActiveCat(id); setQuery(""); setPage(1); }
   function resetToAll()           { setView("all"); setActiveCat("all"); setQuery(""); setPage(1); }
@@ -1447,6 +1344,8 @@ export default function MedicinesDashboard() {
     >
       <div className={isMobile ? styles.contentMobile : styles.content}>
         <div className="fh-page-enter">
+          {isLoading && <StockSkeleton dark={isDark} />}
+          {!isLoading && <>
 
           <AlertBanner
             expiredCount={expired.length}
@@ -1638,6 +1537,7 @@ export default function MedicinesDashboard() {
               )}
             </>
           )}
+          </>}
         </div>
       </div>
 
@@ -1651,14 +1551,18 @@ export default function MedicinesDashboard() {
       <ModalMedicine
         open={medModalOpen} initial={editMed} memberOptions={memberOptions}
         onSave={handleSaveMed}
-        onClose={() => { setMedModalOpen(false); setEditMed(null); }}
+        onClose={() => { setMedModalOpen(false); setEditMed(null); setMedFormErrors(null); }}
+        apiErrors={medFormErrors}
+        isSaving={mutCreateMed.isPending || mutUpdateMed.isPending}
       />
 
       <ModalPlan
         open={planModalOpen} initial={editPlan}
         medicines={medicines} memberOptions={memberOptions}
         onSave={handleSavePlan}
-        onClose={() => { setPlanModalOpen(false); setEditPlan(null); }}
+        onClose={() => { setPlanModalOpen(false); setEditPlan(null); setPlanFormErrors(null); }}
+        apiErrors={planFormErrors}
+        isSaving={mutCreatePlan.isPending || mutUpdatePlan.isPending}
       />
 
       <ConfirmDialog
@@ -1679,8 +1583,12 @@ export default function MedicinesDashboard() {
 
       <ConfirmDialog
         open={!!archivePlan}
-        title={`¿Archivar "${archivePlan?.name ?? ""}"?`}
-        description="El plan pasará al historial. Podrás consultarlo pero no modificarlo."
+        title={archivePlan?.archived
+          ? `¿Eliminar "${archivePlan?.name ?? ""}" definitivamente?`
+          : `¿Archivar "${archivePlan?.name ?? ""}"?`}
+        description={archivePlan?.archived
+          ? "Esta acción no se puede deshacer."
+          : "El plan pasará al historial. Podrás consultarlo pero no modificarlo."}
         onClose={() => setArchivePlan(null)}
         onConfirm={async () => archivePlan && handleArchivePlan(archivePlan)}
       />
