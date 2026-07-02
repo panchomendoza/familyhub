@@ -153,6 +153,11 @@ function ExpenseRow({ g, categories, onEdit, onDelete, onToggle }: {
           {g.bank && <span className={styles.expenseMetaText}>{g.bank}</span>}
           {g.notes && <span className={styles.expenseMetaText}>· {g.notes}</span>}
           {hasInstallments && <span style={{ fontSize:11, color:"#4F7BF7", fontWeight:600 }}>Cuota {g.currentInstallment}/{g.installments}</span>}
+          {g.recurring && (
+            <span style={{ fontSize:11, color:"#4F7BF7", fontWeight:600 }} title={g.recurringUntil ? `Se repite hasta ${g.recurringUntil}` : "Se repite cada mes"}>
+              🔁 Fijo{g.recurringUntil ? ` hasta ${g.recurringUntil}` : ""}
+            </span>
+          )}
           {paid && <span style={{ fontSize:11, color:"#34C78A", fontWeight:700 }}>✓ Pagado</span>}
         </div>
       </div>
@@ -275,7 +280,8 @@ function ModalImportExpenses({ open, onClose, onImport, familyId, fromYear, from
   const [saving, setSaving]     = useState(false);
 
   const alreadyInMonth = new Set(currentExpenses.map(e => e.name));
-  const allImportable  = (sourceData?.expenses ?? []).filter(e => e.installments === 0);
+  // Sin cuotas ni fijos: ambos se propagan solos al crear el mes
+  const allImportable  = (sourceData?.expenses ?? []).filter(e => e.installments === 0 && !e.recurring);
   const importable     = allImportable;
   const selectable     = allImportable.filter(e => !alreadyInMonth.has(e.name));
 
@@ -419,11 +425,13 @@ type ExpenseForm = {
   name: string; amount: string; bank: string;
   categoryId: string; notes: string;
   installments: number; currentInstallment: number; paid: boolean;
+  recurring: boolean; recurringUntil: string;  // "YYYY-MM" o "" = indefinido
 };
 
 const EMPTY_FORM: ExpenseForm = {
   name: "", amount: "", bank: "", categoryId: "",
   notes: "", installments: 0, currentInstallment: 1, paid: false,
+  recurring: false, recurringUntil: "",
 };
 
 function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMobile, apiErrors, isSaving }: {
@@ -433,12 +441,16 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
   apiErrors?: ValidationErrors | null;
   isSaving?: boolean;
 }) {
+  const initialToForm = (i: ExpenseWithCategory): ExpenseForm => ({
+    name: i.name, amount: String(i.amount), bank: i.bank,
+    categoryId: i.categoryId ?? categories[0]?.id ?? "",
+    notes: i.notes ?? "", installments: i.installments, currentInstallment: i.currentInstallment,
+    paid: i.paid, recurring: i.recurring, recurringUntil: i.recurringUntil ?? "",
+  });
+
   const [form, setForm] = useState<ExpenseForm>(() =>
     initial
-      ? { name: initial.name, amount: String(initial.amount), bank: initial.bank,
-          categoryId: initial.categoryId ?? categories[0]?.id ?? "",
-          notes: initial.notes ?? "", installments: initial.installments, currentInstallment: initial.currentInstallment,
-          paid: initial.paid }
+      ? initialToForm(initial)
       : { ...EMPTY_FORM, bank: banks[0] ?? "", categoryId: categories[0]?.id ?? "" }
   );
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
@@ -448,10 +460,7 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
     if (!open) return;
     setLocalErrors({});
     setForm(initial
-      ? { name: initial.name, amount: String(initial.amount), bank: initial.bank,
-          categoryId: initial.categoryId ?? categories[0]?.id ?? "",
-          notes: initial.notes ?? "", installments: initial.installments, currentInstallment: initial.currentInstallment,
-          paid: initial.paid }
+      ? initialToForm(initial)
       : { ...EMPTY_FORM, bank: banks[0] ?? "", categoryId: categories[0]?.id ?? "" }
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -468,7 +477,8 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
     else if (form.name.length > 120)   e.name   = "Máximo 120 caracteres";
     if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
                                         e.amount = "Debe ser mayor a 0";
-    if (Number(form.installments) < 0) e.installments = "No puede ser negativo";
+    if (Number(form.installments) < 0)  e.installments = "No puede ser negativo";
+    if (Number(form.installments) > 60) e.installments = "Máximo 60 cuotas";
     if (Number(form.installments) > 0 && (Number(form.currentInstallment) < 1 || Number(form.currentInstallment) > Number(form.installments)))
                                         e.currentInstallment = `Entre 1 y ${form.installments}`;
     setLocalErrors(e);
@@ -482,8 +492,10 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
     onSave({
       name: form.name.trim(), amount: Number(form.amount),
       bank: form.bank, categoryId: form.categoryId || null,
-      notes: form.notes || null, installments: Number(form.installments ?? 0),
+      notes: form.notes || null, installments: form.recurring ? 0 : Number(form.installments ?? 0),
       paid: form.paid,
+      recurring: form.recurring,
+      recurringUntil: form.recurring && form.recurringUntil ? form.recurringUntil : null,
     });
   }
 
@@ -536,19 +548,45 @@ function ModalExpense({ open, initial, categories, banks, onSave, onClose, isMob
             ))}
           </div>
         </div>
-        <div className="mb-3">
-          <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuotas (0 = sin cuotas)</label>
-          <input className="fh-input" type="number" min="0" placeholder="0"
-            value={form.installments} onChange={e => set("installments", Number(e.target.value))} />
-          <FErr msg={err("installments")} />
+        {/* Gasto fijo mensual — excluyente con cuotas */}
+        <div className="mb-3 col-span-full">
+          <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none" }}>
+            <input type="checkbox" checked={form.recurring}
+              onChange={e => {
+                set("recurring", e.target.checked);
+                if (e.target.checked) { set("installments", 0); set("currentInstallment", 1); }
+              }}
+              style={{ width:15, height:15, accentColor:"#4F7BF7" }} />
+            <span className="fh-text" style={{ fontSize:13 }}>🔁 Gasto fijo mensual (dividendo, arriendo, suscripción...)</span>
+          </label>
+          {form.recurring && (
+            <div style={{ marginTop:10 }}>
+              <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Repetir hasta (opcional)</label>
+              <input className="fh-input" type="month" value={form.recurringUntil}
+                onChange={e => set("recurringUntil", e.target.value)} />
+              <p style={{ fontSize:11, color: V.textMuted, marginTop:4 }}>
+                Vacío = indefinido. Se copia a cada mes nuevo; si ajustas el monto un mes, se propaga hacia adelante.
+              </p>
+            </div>
+          )}
         </div>
-        {Number(form.installments) > 0 && (
-          <div className="mb-3">
-            <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuota actual</label>
-            <input className="fh-input" type="number" min="1" max={form.installments}
-              value={form.currentInstallment} onChange={e => set("currentInstallment", Number(e.target.value))} />
-            <FErr msg={err("currentInstallment")} />
-          </div>
+        {!form.recurring && (
+          <>
+            <div className="mb-3">
+              <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuotas (0 = sin cuotas)</label>
+              <input className="fh-input" type="number" min="0" max="60" placeholder="0"
+                value={form.installments} onChange={e => set("installments", Number(e.target.value))} />
+              <FErr msg={err("installments")} />
+            </div>
+            {Number(form.installments) > 0 && (
+              <div className="mb-3">
+                <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Cuota actual</label>
+                <input className="fh-input" type="number" min="1" max={form.installments}
+                  value={form.currentInstallment} onChange={e => set("currentInstallment", Number(e.target.value))} />
+                <FErr msg={err("currentInstallment")} />
+              </div>
+            )}
+          </>
         )}
         <div className="mb-3.5 col-span-full">
           <label style={{ fontSize:11, fontWeight:700, color: V.textMuted, display:"block", marginBottom:4, textTransform:"uppercase" }}>Observación (opcional)</label>
@@ -604,7 +642,7 @@ export default function ExpensesDashboard() {
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
-  const { data: bankRecords = [] } = useExpenseBanks(familyId);
+  const { data: bankRecords = [], isLoading: banksLoading } = useExpenseBanks(familyId);
   const mutCreateBank = useCreateBank(familyId);
   const mutUpdateBank = useUpdateBank(familyId);
   const mutDeleteBank   = useDeleteBank(familyId);
@@ -627,8 +665,15 @@ export default function ExpensesDashboard() {
   const [deletingCategory, setDeletingCategory] = useState<import("@familyhub/types").ExpenseCategory | null>(null);
 
   const { data: monthData, isLoading } = useMonthExpenses(familyId, year, month);
-  const { data: categories = [] }      = useCategories(familyId);
+  const { data: categories = [], isLoading: catsLoading } = useCategories(familyId);
   const { data: monthsHistory = [] }   = useMonths(familyId);
+
+  // Sin categorías o bancos no se puede operar: forzar la vista Configurar
+  const setupReady = !catsLoading && !banksLoading;
+  const needsSetup = setupReady && (categories.length === 0 || bankRecords.length === 0);
+  useEffect(() => {
+    if (needsSetup) setView("config");
+  }, [needsSetup]);
 
   const expenses = monthData?.expenses ?? [];
   const income   = monthData?.income   ?? 0;
@@ -706,8 +751,14 @@ export default function ExpensesDashboard() {
   const nowYear  = now.getFullYear();
   const nowMonth = now.getMonth();
   const viewAbs  = year * 12 + month;
-  const canGoPrev = viewAbs > nowYear * 12 + nowMonth - 1;
-  const canGoNext = viewAbs < nowYear * 12 + nowMonth + 1;
+  const nowAbs   = nowYear * 12 + nowMonth;
+  // Hasta 12 meses hacia adelante; si hay cuotas más allá, hasta el último mes con datos
+  const maxKnownAbs = Math.max(
+    nowAbs + 12,
+    ...monthsHistory.map(m => m.year * 12 + m.month),
+  );
+  const canGoPrev = viewAbs > nowAbs - 1;
+  const canGoNext = viewAbs < maxKnownAbs;
 
   function navPrev() {
     if (!canGoPrev) return;
@@ -718,7 +769,10 @@ export default function ExpensesDashboard() {
     if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1);
   }
 
-  function openAdd() { setEditExpense(null); setModal("expense"); }
+  function openAdd() {
+    if (needsSetup) { setView("config"); return; }
+    setEditExpense(null); setModal("expense");
+  }
   function openEdit(g: ExpenseWithCategory) { setEditExpense(g); setModal("expense"); }
   function openDel(g: ExpenseWithCategory)  { setDeleteTarget(g); setModal("del"); }
 
@@ -784,18 +838,25 @@ export default function ExpensesDashboard() {
         </div>
 
         <div style={{ padding:"8px 0", flex:1 }}>
-          {NAV.map(n => (
-            <button key={n.key} onClick={() => { setView(n.key); onSelect?.(); }} style={{
-              display:"flex", alignItems:"center", gap:10, width:"100%",
-              padding:"10px 16px", background: view === n.key ? "#F7874F18" : "transparent",
-              border:"none", borderLeft: view === n.key ? "3px solid #F7874F" : "3px solid transparent",
-              cursor:"pointer", fontFamily:"inherit",
-              fontWeight: view === n.key ? 700 : 500, fontSize:13,
-              color: view === n.key ? "#F7874F" : V.textMuted,
-            }}>
-              <span>{n.icon}</span><span>{n.label}</span>
-            </button>
-          ))}
+          {NAV.map(n => {
+            const locked = needsSetup && n.key !== "config";
+            return (
+              <button key={n.key}
+                onClick={() => { if (locked) return; setView(n.key); onSelect?.(); }}
+                title={locked ? "Primero configura categorías y bancos" : undefined}
+                style={{
+                  display:"flex", alignItems:"center", gap:10, width:"100%",
+                  padding:"10px 16px", background: view === n.key ? "#F7874F18" : "transparent",
+                  border:"none", borderLeft: view === n.key ? "3px solid #F7874F" : "3px solid transparent",
+                  cursor: locked ? "not-allowed" : "pointer", fontFamily:"inherit",
+                  fontWeight: view === n.key ? 700 : 500, fontSize:13,
+                  color: view === n.key ? "#F7874F" : V.textMuted,
+                  opacity: locked ? 0.4 : 1,
+                }}>
+                <span>{n.icon}</span><span>{n.label}</span>{locked && <span style={{ marginLeft:"auto", fontSize:11 }}>🔒</span>}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ margin:"0 12px 12px", padding:"12px", background: V.surfaceAlt, borderRadius:10, border:`1px solid ${V.border}` }}>
@@ -981,7 +1042,7 @@ export default function ExpensesDashboard() {
             <div className={styles.viewHeader} style={{ gap:8, flexWrap:"wrap" }}>
               <h2 className="fh-text" style={{ margin:0, fontSize:20, fontWeight:800 }}>Gastos · {MONTHS[month]} {year}</h2>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={() => setImportOpen(true)} className="fh-btn" style={{ background: V.accentBg, color: V.accentText, border:`1.5px solid ${V.accentText}30`, borderRadius:8, padding:"7px 12px", fontWeight:600, fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>
+                <button onClick={() => { if (needsSetup) { setView("config"); return; } setImportOpen(true); }} className="fh-btn" style={{ background: V.accentBg, color: V.accentText, border:`1.5px solid ${V.accentText}30`, borderRadius:8, padding:"7px 12px", fontWeight:600, fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>
                   📋 Copiar del mes anterior
                 </button>
                 {isDesktop && <button onClick={openAdd} style={{ background:"#F7874F", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer", fontFamily:"inherit" }}>+ Agregar gasto</button>}

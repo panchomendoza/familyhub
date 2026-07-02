@@ -40,8 +40,8 @@ WHERE "verified" = false
 -- Descomentar solo si quieres empezar con BD completamente vacía.
 -- El orden importa por las foreign keys (cascades se encargan del resto).
 --
--- DELETE FROM "Family";   -- borra en cascada: miembros, gastos, stock, vehículos, hijos
--- DELETE FROM "User";     -- borra en cascada: sesiones, tokens
+DELETE FROM "Family";   -- borra en cascada: miembros, gastos, stock, vehículos, hijos
+DELETE FROM "User";     -- borra en cascada: sesiones, tokens
 
 -- ── Resumen ───────────────────────────────────────────────────────────────────
 SELECT

@@ -18,6 +18,8 @@ export interface ExpenseWithCategory {
   currentInstallment:  number;
   paid:                boolean;
   installmentGroupId:  string | null;
+  recurring:           boolean;
+  recurringUntil:      string | null;  // "YYYY-MM"
   createdAt:           string;
   category:            ExpenseCategory | null;
 }
@@ -40,6 +42,8 @@ export interface ExpenseInput {
   notes?:      string | null;
   installments?: number;
   paid?:       boolean;
+  recurring?:      boolean;
+  recurringUntil?: string | null;  // "YYYY-MM"
 }
 
 export interface CategoryInput {
@@ -89,6 +93,16 @@ function enrichExpense(
   const cats = qc.getQueryData<ExpenseCategory[]>(expensesKeys.categories(familyId));
   const category = cats?.find(c => c.id === expense.categoryId) ?? null;
   return { ...expense, category };
+}
+
+/** Invalida los caches de todos los meses menos el activo (cuotas/fijos tocan meses futuros) */
+function invalidateOtherMonths(qc: QC, familyId: string, year: number, month: number) {
+  qc.invalidateQueries({
+    predicate: q =>
+      q.queryKey[0] === "expenses-month" &&
+      q.queryKey[1] === familyId &&
+      !(q.queryKey[2] === year && q.queryKey[3] === month),
+  });
 }
 
 /* ════════════════════════════════════
@@ -180,11 +194,18 @@ export function useCreateExpense(
       ),
     onSuccess: ({ data }) => {
       if (!familyId) return;
-      // La API devuelve expenses SIN el join de category → enriquecemos desde cache
-      const newExpenses = data.expenses.map(e => enrichExpense(qc, familyId, e));
-      qc.setQueryData<MonthlyExpensesDetail>(expensesKeys.month(familyId, year, month), old =>
-        old ? { ...old, expenses: [...old.expenses, ...newExpenses] } : old,
-      );
+      // Con cuotas el API devuelve una expense POR MES (mes actual + futuros).
+      // Al cache de este mes solo se agregan las que pertenecen a él.
+      qc.setQueryData<MonthlyExpensesDetail>(expensesKeys.month(familyId, year, month), old => {
+        if (!old) return old;
+        const ofThisMonth = data.expenses.filter(e => e.monthId === old.id);
+        // La API devuelve expenses SIN el join de category → enriquecemos desde cache
+        return { ...old, expenses: [...old.expenses, ...ofThisMonth.map(e => enrichExpense(qc, familyId, e))] };
+      });
+      // Cuotas futuras o copias de gasto fijo pueden haber caído en meses ya cargados → refrescarlos
+      if (data.expenses.length > 1 || data.expenses.some(e => e.recurring)) {
+        invalidateOtherMonths(qc, familyId, year, month);
+      }
       qc.invalidateQueries({ queryKey: expensesKeys.months(familyId) });
     },
   });
@@ -201,7 +222,7 @@ export function useUpdateExpense(
       api.patch<{ expense: Omit<ExpenseWithCategory, "category"> & { categoryId: string | null } }>(
         `/expenses/${familyId}/expenses/${id}`, data
       ),
-    onSuccess: ({ data }) => {
+    onSuccess: ({ data }, { data: input }) => {
       if (!familyId) return;
       const updated = enrichExpense(qc, familyId, data.expense);
       qc.setQueryData<MonthlyExpensesDetail>(expensesKeys.month(familyId, year, month), old =>
@@ -209,6 +230,10 @@ export function useUpdateExpense(
           ? { ...old, expenses: old.expenses.map(e => e.id === updated.id ? updated : e) }
           : old,
       );
+      // Editar un gasto fijo (o quitarle la recurrencia) sincroniza copias en meses futuros
+      if (data.expense.recurring || input.recurring !== undefined) {
+        invalidateOtherMonths(qc, familyId, year, month);
+      }
       qc.invalidateQueries({ queryKey: expensesKeys.months(familyId) });
     },
   });
@@ -263,6 +288,8 @@ export function useDeleteExpense(
           old ? { ...old, expenses: old.expenses.filter(e => e.id !== id) } : old,
         );
       }
+      // Grupos de cuotas y gastos fijos tienen filas en meses futuros → refrescarlos
+      invalidateOtherMonths(qc, familyId, year, month);
       qc.invalidateQueries({ queryKey: expensesKeys.months(familyId) });
     },
   });

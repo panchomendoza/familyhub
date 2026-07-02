@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import type { Prisma } from "@prisma/client";
 import { db } from "../lib/db.js";
 import { requireAuth, requireCsrf, requireFamilyMember } from "../middleware/auth.js";
 import type { AppEnv } from "../lib/hono.js";
@@ -47,8 +48,12 @@ const expenseSchema = z.object({
   bank:         z.string().max(80).trim().default(""),
   amount:       z.number().positive(),
   notes:        z.string().max(500).optional().nullable(),
-  installments: z.number().int().min(0).default(0),
+  installments: z.number().int().min(0).max(60, "Máximo 60 cuotas").default(0),
   paid:         z.boolean().default(false),
+  // Gasto fijo mensual (excluyente con cuotas — se valida en el handler
+  // porque .refine() rompería el .partial() que usa el PATCH)
+  recurring:      z.boolean().default(false),
+  recurringUntil: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Formato YYYY-MM").optional().nullable(),
 });
 
 const updateIncomeSchema = z.object({
@@ -322,41 +327,157 @@ expensesRoutes.post("/:familyId/months/:year/:month/expenses", requireCsrf, requ
   const installments       = parsed.data.installments ?? 0;
   const installmentGroupId = installments > 1 ? nanoid() : null;
 
+  if (parsed.data.recurring && installments > 1) {
+    return c.json({ error: "Un gasto no puede ser recurrente y en cuotas a la vez" }, 400);
+  }
+
   if (installments > 1) {
-    const createdExpenses = await db.$transaction(async (tx) => {
-      const results = [];
-      for (let i = 0; i < installments; i++) {
-        const targetMonth = month + i;
-        const targetYear  = year + Math.floor(targetMonth / 12);
-        const normalMonth = targetMonth % 12;
-
-        let targetRecord = await tx.expenseMonth.findUnique({
-          where: { familyId_year_month: { familyId, year: targetYear, month: normalMonth } },
-        });
-        if (!targetRecord) {
-          targetRecord = await tx.expenseMonth.create({
-            data: { familyId, year: targetYear, month: normalMonth },
-          });
-        }
-
-        const expense = await tx.expense.create({
-          data: {
-            monthId:            targetRecord.id,
-            categoryId:         parsed.data.categoryId,
-            name:               parsed.data.name,
-            bank:               parsed.data.bank,
-            amount:             parsed.data.amount,
-            notes:              parsed.data.notes,
-            installments,
-            currentInstallment: i + 1,
-            paid:               false,
-            installmentGroupId,
-          },
-        });
-        results.push(expense);
-      }
-      return results;
+    const targets = Array.from({ length: installments }, (_, i) => {
+      const t = month + i;
+      return { year: year + Math.floor(t / 12), month: t % 12 };
     });
+
+    // La herencia de otros grupos de cuotas se calcula en memoria para
+    // mantener la transacción corta (la BD es remota; una query por mes
+    // y por grupo superaba el timeout con muchas cuotas).
+    const createdExpenses = await db.$transaction(async (tx) => {
+      const existingMonths = await tx.expenseMonth.findMany({
+        where: { familyId, OR: targets },
+        include: {
+          expenses: {
+            where: {
+              OR: [
+                { installments: { gt: 0 }, installmentGroupId: { not: null } },
+                { recurring: true },
+              ],
+            },
+          },
+        },
+      });
+      const byKey = new Map(existingMonths.map(m => [`${m.year}-${m.month}`, m]));
+
+      interface GroupInfo {
+        installmentGroupId: string;
+        currentInstallment: number;
+        installments:       number;
+        categoryId:         string | null;
+        name:               string;
+        bank:               string;
+        amount:             number;
+      }
+      interface RecurringInfo {
+        categoryId:     string | null;
+        name:           string;
+        bank:           string;
+        amount:         number;
+        notes:          string | null;
+        recurringUntil: string | null;
+      }
+
+      // Estado del mes anterior en la cadena de herencia
+      let prevGroups:    GroupInfo[]     = [];
+      let prevRecurring: RecurringInfo[] = [];
+      const monthIds: string[] = [];
+
+      for (const t of targets) {
+        const existing = byKey.get(`${t.year}-${t.month}`);
+        if (existing) {
+          monthIds.push(existing.id);
+          // Grupos activos de este mes (dedupe por grupo)
+          const seen = new Set<string>();
+          prevGroups = existing.expenses.flatMap(e => {
+            if (!e.installmentGroupId || seen.has(e.installmentGroupId)) return [];
+            seen.add(e.installmentGroupId);
+            return [{
+              installmentGroupId: e.installmentGroupId,
+              currentInstallment: e.currentInstallment,
+              installments:       e.installments,
+              categoryId:         e.categoryId,
+              name:               e.name,
+              bank:               e.bank,
+              amount:             e.amount,
+            }];
+          });
+          prevRecurring = existing.expenses
+            .filter(e => e.recurring)
+            .map(e => ({
+              categoryId:     e.categoryId,
+              name:           e.name,
+              bank:           e.bank,
+              amount:         e.amount,
+              notes:          e.notes,
+              recurringUntil: e.recurringUntil,
+            }));
+        } else {
+          const newMonth = await tx.expenseMonth.create({
+            data: { familyId, year: t.year, month: t.month },
+          });
+          // Heredar cuotas pendientes de otros grupos (el grupo nuevo se crea abajo)
+          const inherited = prevGroups
+            .filter(g => g.installmentGroupId !== installmentGroupId && g.currentInstallment < g.installments)
+            .map(g => ({ ...g, currentInstallment: g.currentInstallment + 1 }));
+          // Copiar gastos fijos vigentes
+          const ymKey = `${t.year}-${String(t.month + 1).padStart(2, "0")}`;
+          const recurringCopies = prevRecurring.filter(r => !r.recurringUntil || r.recurringUntil >= ymKey);
+
+          if (inherited.length > 0 || recurringCopies.length > 0) {
+            await tx.expense.createMany({
+              data: [
+                ...inherited.map(g => ({
+                  monthId:            newMonth.id,
+                  categoryId:         g.categoryId,
+                  name:               g.name,
+                  bank:               g.bank,
+                  amount:             g.amount,
+                  installments:       g.installments,
+                  currentInstallment: g.currentInstallment,
+                  installmentGroupId: g.installmentGroupId,
+                  paid:               false,
+                })),
+                ...recurringCopies.map(r => ({
+                  monthId:            newMonth.id,
+                  categoryId:         r.categoryId,
+                  name:               r.name,
+                  bank:               r.bank,
+                  amount:             r.amount,
+                  notes:              r.notes,
+                  installments:       0,
+                  currentInstallment: 0,
+                  paid:               false,
+                  recurring:          true,
+                  recurringUntil:     r.recurringUntil,
+                })),
+              ],
+            });
+          }
+          monthIds.push(newMonth.id);
+          prevGroups    = inherited;
+          prevRecurring = recurringCopies;
+        }
+      }
+
+      // Una cuota por mes, en un solo createMany
+      await tx.expense.createMany({
+        data: monthIds.map((monthId, i) => ({
+          monthId,
+          categoryId:         parsed.data.categoryId,
+          name:               parsed.data.name,
+          bank:               parsed.data.bank,
+          amount:             parsed.data.amount,
+          notes:              parsed.data.notes ?? null,
+          installments,
+          currentInstallment: i + 1,
+          paid:               false,
+          installmentGroupId,
+        })),
+      });
+
+      return tx.expense.findMany({
+        where:   { installmentGroupId: installmentGroupId! },
+        orderBy: { currentInstallment: "asc" },
+      });
+    }, { timeout: 30_000 });
+
     return c.json({ expenses: createdExpenses }, 201);
   }
 
@@ -371,8 +492,23 @@ expensesRoutes.post("/:familyId/months/:year/:month/expenses", requireCsrf, requ
       installments:       0,
       currentInstallment: 0,
       paid:               parsed.data.paid,
+      recurring:          parsed.data.recurring,
+      recurringUntil:     parsed.data.recurringUntil ?? null,
     },
   });
+
+  // Gasto fijo: copiarlo a los meses futuros que ya existan
+  if (expense.recurring) {
+    await syncRecurringCopies(familyId, year, month, expense.name, {
+      name:           expense.name,
+      bank:           expense.bank,
+      amount:         expense.amount,
+      categoryId:     expense.categoryId,
+      notes:          expense.notes,
+      recurringUntil: expense.recurringUntil,
+    });
+  }
+
   return c.json({ expenses: [expense] }, 201);
 });
 
@@ -449,7 +585,8 @@ expensesRoutes.patch("/:familyId/expenses/:expenseId", requireCsrf, requireFamil
   const expenseId = c.req.param("expenseId");
 
   const existing = await db.expense.findFirst({
-    where: { id: expenseId, month: { familyId } },
+    where:   { id: expenseId, month: { familyId } },
+    include: { month: { select: { year: true, month: true } } },
   });
   if (!existing) return c.json({ error: "Gasto no encontrado" }, 404);
 
@@ -461,6 +598,23 @@ expensesRoutes.patch("/:familyId/expenses/:expenseId", requireCsrf, requireFamil
     where: { id: expenseId },
     data:  parsed.data,
   });
+
+  // Sincronizar copias futuras del gasto fijo (por nombre previo al cambio)
+  const { year: srcYear, month: srcMonth } = existing.month;
+  if (existing.recurring && !expense.recurring) {
+    // Se cortó la recurrencia desde este mes hacia adelante
+    await syncRecurringCopies(familyId, srcYear, srcMonth, existing.name, null);
+  } else if (expense.recurring) {
+    await syncRecurringCopies(familyId, srcYear, srcMonth, existing.name, {
+      name:           expense.name,
+      bank:           expense.bank,
+      amount:         expense.amount,
+      categoryId:     expense.categoryId,
+      notes:          expense.notes,
+      recurringUntil: expense.recurringUntil,
+    });
+  }
+
   return c.json({ expense });
 });
 
@@ -487,11 +641,18 @@ expensesRoutes.delete("/:familyId/expenses/:expenseId", requireCsrf, requireFami
   const expenseId = c.req.param("expenseId");
 
   const existing = await db.expense.findFirst({
-    where: { id: expenseId, month: { familyId } },
+    where:   { id: expenseId, month: { familyId } },
+    include: { month: { select: { year: true, month: true } } },
   });
   if (!existing) return c.json({ error: "Gasto no encontrado" }, 404);
 
   await db.expense.delete({ where: { id: expenseId } });
+
+  // Gasto fijo eliminado: quitar también sus copias futuras no pagadas
+  if (existing.recurring) {
+    await syncRecurringCopies(familyId, existing.month.year, existing.month.month, existing.name, null);
+  }
+
   return c.json({ ok: true });
 });
 
@@ -566,57 +727,186 @@ expensesRoutes.get("/:familyId/months/:year/:month/analysis", requireFamilyMembe
 //   HELPERS
 // ══════════════════════════════════════════
 
-async function createMonthWithInheritance(familyId: string, year: number, month: number) {
+/** Filtro Prisma: meses estrictamente posteriores a (year, month 0-based) */
+function afterMonthFilter(year: number, month: number) {
+  return { OR: [{ year: { gt: year } }, { year, month: { gt: month } }] };
+}
+
+interface RecurringData {
+  name:           string;
+  bank:           string;
+  amount:         number;
+  categoryId:     string | null;
+  notes:          string | null;
+  recurringUntil: string | null;
+}
+
+/**
+ * Sincroniza las copias de un gasto fijo en los meses futuros YA existentes.
+ * La herencia al crear meses cubre los meses nuevos; esto cubre los que ya
+ * estaban materializados (p.ej. por cuotas) al crear o editar el gasto fijo.
+ * `next = null` corta la recurrencia: elimina las copias futuras no pagadas.
+ * Las copias se identifican por nombre (mismo criterio que el import).
+ */
+async function syncRecurringCopies(
+  familyId: string,
+  srcYear:  number,
+  srcMonth: number,
+  oldName:  string,
+  next:     RecurringData | null,
+) {
+  const future = afterMonthFilter(srcYear, srcMonth);
+
+  if (!next) {
+    await db.expense.deleteMany({
+      where: { recurring: true, name: oldName, paid: false, month: { familyId, ...future } },
+    });
+    return;
+  }
+
+  // 1) Quitar copias que quedaron fuera del nuevo "hasta"
+  if (next.recurringUntil) {
+    const [uy, um] = next.recurringUntil.split("-").map(Number) as [number, number];
+    await db.expense.deleteMany({
+      where: {
+        recurring: true, name: oldName, paid: false,
+        month: { familyId, OR: [{ year: { gt: uy } }, { year: uy, month: { gt: um - 1 } }] },
+      },
+    });
+  }
+
+  // 2) Actualizar las copias futuras existentes
+  await db.expense.updateMany({
+    where: { recurring: true, name: oldName, month: { familyId, ...future } },
+    data: {
+      name:           next.name,
+      bank:           next.bank,
+      amount:         next.amount,
+      categoryId:     next.categoryId,
+      notes:          next.notes,
+      recurringUntil: next.recurringUntil,
+    },
+  });
+
+  // 3) Crear las copias faltantes en meses futuros ya materializados (dentro del rango)
+  const futureMonths = await db.expenseMonth.findMany({
+    where:   { familyId, ...future, closed: false },
+    include: { expenses: { where: { name: next.name }, select: { id: true } } },
+  });
+  const missing = futureMonths.filter(m => {
+    if (m.expenses.length > 0) return false;
+    if (!next.recurringUntil)  return true;
+    return `${m.year}-${String(m.month + 1).padStart(2, "0")}` <= next.recurringUntil;
+  });
+  if (missing.length > 0) {
+    await db.expense.createMany({
+      data: missing.map(m => ({
+        monthId:            m.id,
+        categoryId:         next.categoryId,
+        name:               next.name,
+        bank:               next.bank,
+        amount:             next.amount,
+        notes:              next.notes,
+        installments:       0,
+        currentInstallment: 0,
+        paid:               false,
+        recurring:          true,
+        recurringUntil:     next.recurringUntil,
+      })),
+    });
+  }
+}
+
+/**
+ * Crea un mes heredando las cuotas pendientes del mes anterior.
+ * (El alta de gastos en cuotas materializa sus meses con herencia
+ * en memoria dentro del POST — esto cubre la creación lazy vía GET.)
+ */
+async function createMonthWithInheritanceTx(
+  tx: Prisma.TransactionClient,
+  familyId: string,
+  year: number,
+  month: number,
+) {
   const prevMonth = month === 0 ? 11 : month - 1;
   const prevYear  = month === 0 ? year - 1 : year;
 
-  return db.$transaction(async (tx) => {
-    const newMonth = await tx.expenseMonth.create({
-      data: { familyId, year, month },
-    });
+  const newMonth = await tx.expenseMonth.create({
+    data: { familyId, year, month },
+  });
 
-    const prevRecord = await tx.expenseMonth.findUnique({
-      where:   { familyId_year_month: { familyId, year: prevYear, month: prevMonth } },
-      include: {
-        expenses: {
-          where: {
-            installments:       { gt: 0 },
-            installmentGroupId: { not: null },
-          },
+  const prevRecord = await tx.expenseMonth.findUnique({
+    where:   { familyId_year_month: { familyId, year: prevYear, month: prevMonth } },
+    include: {
+      expenses: {
+        where: {
+          OR: [
+            { installments: { gt: 0 }, installmentGroupId: { not: null } },
+            { recurring: true },
+          ],
         },
       },
-    });
+    },
+  });
 
-    if (prevRecord) {
-      const inheritedGroups = new Set<string>();
-      for (const e of prevRecord.expenses) {
-        if (!e.installmentGroupId || inheritedGroups.has(e.installmentGroupId)) continue;
-
-        const nextInstallment = await tx.expense.findFirst({
-          where: { installmentGroupId: e.installmentGroupId, monthId: newMonth.id },
-        });
-        if (!nextInstallment && e.currentInstallment < e.installments) {
-          await tx.expense.create({
-            data: {
-              monthId:            newMonth.id,
-              categoryId:         e.categoryId,
-              name:               e.name,
-              bank:               e.bank,
-              amount:             e.amount,
-              installments:       e.installments,
-              currentInstallment: e.currentInstallment + 1,
-              installmentGroupId: e.installmentGroupId,
-              paid:               false,
-            },
-          });
-          inheritedGroups.add(e.installmentGroupId);
-        }
-      }
+  if (prevRecord) {
+    // Gastos fijos mensuales: copiarlos si su recurrencia sigue vigente.
+    // El monto se toma del mes anterior — un ajuste (p.ej. UF) se propaga hacia adelante.
+    const ymKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const recurringToCopy = prevRecord.expenses.filter(e =>
+      e.recurring && (!e.recurringUntil || e.recurringUntil >= ymKey)
+    );
+    if (recurringToCopy.length > 0) {
+      await tx.expense.createMany({
+        data: recurringToCopy.map(e => ({
+          monthId:            newMonth.id,
+          categoryId:         e.categoryId,
+          name:               e.name,
+          bank:               e.bank,
+          amount:             e.amount,
+          notes:              e.notes,
+          installments:       0,
+          currentInstallment: 0,
+          paid:               false,
+          recurring:          true,
+          recurringUntil:     e.recurringUntil,
+        })),
+      });
     }
 
-    return tx.expenseMonth.findUnique({
-      where:   { id: newMonth.id },
-      include: { expenses: { include: { category: true }, orderBy: { createdAt: "asc" } } },
-    }) as Promise<NonNullable<Awaited<ReturnType<typeof tx.expenseMonth.findUnique>>>>;
+    const inheritedGroups = new Set<string>();
+    for (const e of prevRecord.expenses) {
+      if (!e.installmentGroupId || inheritedGroups.has(e.installmentGroupId)) continue;
+
+      const nextInstallment = await tx.expense.findFirst({
+        where: { installmentGroupId: e.installmentGroupId, monthId: newMonth.id },
+      });
+      if (!nextInstallment && e.currentInstallment < e.installments) {
+        await tx.expense.create({
+          data: {
+            monthId:            newMonth.id,
+            categoryId:         e.categoryId,
+            name:               e.name,
+            bank:               e.bank,
+            amount:             e.amount,
+            installments:       e.installments,
+            currentInstallment: e.currentInstallment + 1,
+            installmentGroupId: e.installmentGroupId,
+            paid:               false,
+          },
+        });
+        inheritedGroups.add(e.installmentGroupId);
+      }
+    }
+  }
+
+  const fullMonth = await tx.expenseMonth.findUnique({
+    where:   { id: newMonth.id },
+    include: { expenses: { include: { category: true }, orderBy: { createdAt: "asc" } } },
   });
+  return fullMonth!;
+}
+
+async function createMonthWithInheritance(familyId: string, year: number, month: number) {
+  return db.$transaction((tx) => createMonthWithInheritanceTx(tx, familyId, year, month));
 }
